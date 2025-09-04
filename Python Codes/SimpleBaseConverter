@@ -1,0 +1,14 @@
+WAP to take two inputs from a user and convert that number to a decimal number base can be 2 or 8 or 16 using JAVA
+
+
+
+# Take input from the user
+number = input("Enter the number: ")
+base = int(input("Enter the base (2, 8, or 16): "))
+
+# Convert to decimal
+try:
+    decimal = int(number, base)
+    print("Decimal value:", decimal)
+except ValueError:
+    print("Invalid number for base", base)

@@ -1,0 +1,44 @@
+Create a simple text file with 10 common words and name it my dictionary and wap to print the scores of those words if they are scrabble words the official scrabble score will be addition of each letter scoring to get the word score
+
+
+
+apple
+banana
+chair
+table
+hello
+world
+cat
+dog
+house
+light
+
+
+
+
+
+
+# Scrabble letter scores dictionary
+scrabble_scores = {
+    **dict.fromkeys("AEIOULNSTR", 1),
+    **dict.fromkeys("DG", 2),
+    **dict.fromkeys("BCMP", 3),
+    **dict.fromkeys("FHVWY", 4),
+    **dict.fromkeys("K", 5),
+    **dict.fromkeys("JX", 8),
+    **dict.fromkeys("QZ", 10)
+}
+
+def get_word_score(word):
+    return sum(scrabble_scores.get(ch.upper(), 0) for ch in word)
+
+# Read words from the file and calculate scores
+try:
+    with open("mydictionary.txt", "r") as file:
+        print("Scrabble Scores:")
+        for line in file:
+            word = line.strip()
+            score = get_word_score(word)
+            print(f"{word} => {score}")
+except FileNotFoundError:
+    print("Error: 'mydictionary.txt' not found.")

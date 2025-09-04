@@ -1,0 +1,57 @@
+Create a simple text file with 10 common words and name it my dictionary and wap to print the scores of those words if they are scrabble words the official scrabble score will be addition of each letter scoring to get the word score 
+
+
+apple
+banana
+chair
+table
+hello
+world
+cat
+dog
+house
+light
+
+
+
+
+
+
+
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.HashMap;
+
+public class ScrabbleScore {
+    public static void main(String[] args) {
+        // Scrabble letter scores
+        HashMap<Character, Integer> scoreMap = new HashMap<>();
+
+        // Define scores
+        for (char c : "AEIOULNSTR".toCharArray()) scoreMap.put(c, 1);
+        for (char c : "DG".toCharArray()) scoreMap.put(c, 2);
+        for (char c : "BCMP".toCharArray()) scoreMap.put(c, 3);
+        for (char c : "FHVWY".toCharArray()) scoreMap.put(c, 4);
+        scoreMap.put('K', 5);
+        for (char c : "JX".toCharArray()) scoreMap.put(c, 8);
+        for (char c : "QZ".toCharArray()) scoreMap.put(c, 10);
+
+        System.out.println("Scrabble Scores:");
+
+        try (BufferedReader reader = new BufferedReader(new FileReader("mydictionary.txt"))) {
+            String word;
+
+            while ((word = reader.readLine()) != null) {
+                int score = 0;
+                for (char c : word.toUpperCase().toCharArray()) {
+                    score += scoreMap.getOrDefault(c, 0); // Add score or 0 if character not found
+                }
+                System.out.println(word + " => " + score);
+            }
+
+        } catch (IOException e) {
+            System.out.println("Error: Unable to read file.");
+        }
+    }
+}

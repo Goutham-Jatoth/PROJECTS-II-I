@@ -1,0 +1,36 @@
+WAP to ask user to input date in DD MM YY format and print calendar of that month
+
+
+
+import calendar
+from datetime import datetime
+
+# Get user input
+date_input = input("Enter date (DD MM YY): ")
+
+try:
+    # Split and convert input
+    day, month, year = map(int, date_input.strip().split())
+
+    # Convert 2-digit year to 4-digit (assumes 2000–2099)
+    if year < 100:
+        year += 2000
+
+    # Create a calendar.TextCalendar instance
+    cal = calendar.TextCalendar(firstweekday=0)  # 0 = Monday
+
+    # Get the month's calendar as a multi-line string
+    cal_str = cal.formatmonth(year, month)
+
+    # Optional: Highlight the entered day with asterisk (basic way)
+    day_str = f"{day:2d}"
+    highlighted_day = f"*{day:2d}" if day < 10 else f"*{day}"
+
+    if day_str in cal_str:
+        cal_str = cal_str.replace(day_str, highlighted_day, 1)
+
+    print(f"\nCalendar for {calendar.month_name[month]} {year}")
+    print(cal_str)
+
+except ValueError:
+    print("Invalid date format. Please enter in DD MM YY format.")

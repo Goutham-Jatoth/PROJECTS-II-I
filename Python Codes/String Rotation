@@ -1,0 +1,17 @@
+WAP to determine if one string is a rotation of another For example hello has the following rotations lohel ohell and elloh but elolh is not a rotation because atleast three letters are out of order
+
+
+
+# Take two input strings
+str1 = input("Enter the original string: ")
+str2 = input("Enter the string to check for rotation: ")
+
+# Check if lengths are equal
+if len(str1) != len(str2):
+    print("Not a rotation (different lengths).")
+else:
+    # Double the first string and check if second string is a substring
+    if str2 in (str1 + str1):
+        print("Yes, it is a rotation.")
+    else:
+        print("No, it is not a rotation.")

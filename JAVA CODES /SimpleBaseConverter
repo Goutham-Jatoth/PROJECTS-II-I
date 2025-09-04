@@ -1,0 +1,24 @@
+WAP to take two inputs from a user and convert that number to a decimal number base can be 2 or 8 or 16 using JAVA
+
+
+
+
+
+import java.util.Scanner;
+
+public class SimpleBaseConverter {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // Get number and base from user
+        System.out.print("Enter number: ");
+        String number = sc.next();
+
+        System.out.print("Enter base (2, 8, or 16): ");
+        int base = sc.nextInt();
+
+        // Convert to decimal and print
+        int decimal = Integer.parseInt(number, base);
+        System.out.println("Decimal value: " + decimal);
+    }
+}

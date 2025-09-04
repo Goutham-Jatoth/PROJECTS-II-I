@@ -1,0 +1,32 @@
+WAP to determine if one string is a rotation of another For example hello has the following rotations lohel ohell and elloh but elolh is not a rotation because atleast three letters are out of order
+
+
+
+
+import java.util.Scanner;
+
+public class StringRotationCheck {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+
+        // Get input strings
+        System.out.print("Enter the original string: ");
+        String str1 = sc.nextLine();
+
+        System.out.print("Enter the string to check for rotation: ");
+        String str2 = sc.nextLine();
+
+        // Check if lengths are equal
+        if (str1.length() != str2.length()) {
+            System.out.println("No, it is not a rotation (different lengths).");
+        } else {
+            // Check if str2 is a substring of str1 + str1
+            String combined = str1 + str1;
+            if (combined.contains(str2)) {
+                System.out.println("Yes, it is a rotation.");
+            } else {
+                System.out.println("No, it is not a rotation.");
+            }
+        }
+    }
+}

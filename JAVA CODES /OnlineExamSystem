@@ -1,0 +1,171 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+
+public class OnlineExamSystem extends JFrame implements ActionListener {
+    JLabel questionLabel, timerLabel;
+    JRadioButton option1, option2, option3, option4;
+    JButton nextButton, submitButton;
+    ButtonGroup optionsGroup;
+
+    int currentQuestion = 0;
+    int score = 0;
+    int timeLeft = 90; // total exam time in seconds
+
+    // Questions, Options, and Answers
+    String[] questions = {
+            "Q1. Which of these is not a Java feature?",
+            "Q2. What is JVM in Java?",
+            "Q3. Which keyword is used to inherit a class in Java?",
+            "Q4. Which OOP principle is achieved by method overloading?",
+            "Q5. Which OOP principle provides data hiding?",
+            "Q6. Which of these is a superclass of all classes in Java?",
+            "Q7. Which method is called automatically when an object is created?",
+            "Q8. Which keyword is used to stop inheritance in Java?",
+            "Q9. Which concept allows using the same method name but different parameters?",
+            "Q10. Which operator is used for dynamic memory allocation in Java?",
+            "Q11. Which package contains Scanner class?",
+            "Q12. Which keyword is used for interface implementation?",
+            "Q13. Which method must be implemented by all threads?",
+            "Q14. Which keyword is used to refer current object in Java?",
+            "Q15. Which principle of OOP is shown by ‘private’ access modifier?"
+    };
+
+    String[][] options = {
+            {"Object-oriented", "Use of pointers", "Portable", "Dynamic"},
+            {"Java Virtual Machine", "Java Verified Module", "Just Virtual Machine", "None"},
+            {"extends", "implements", "super", "this"},
+            {"Encapsulation", "Polymorphism", "Inheritance", "Abstraction"},
+            {"Polymorphism", "Inheritance", "Encapsulation", "Abstraction"},
+            {"Object", "Class", "Super", "Package"},
+            {"main()", "constructor", "static()", "start()"},
+            {"super", "final", "this", "extends"},
+            {"Inheritance", "Polymorphism", "Encapsulation", "Abstraction"},
+            {"malloc", "allocate", "new", "create"},
+            {"java.io", "java.util", "java.lang", "java.sql"},
+            {"super", "extends", "implements", "interface"},
+            {"start()", "run()", "execute()", "main()"},
+            {"this", "super", "static", "self"},
+            {"Inheritance", "Polymorphism", "Encapsulation", "Abstraction"}
+    };
+
+    // Correct answers index for each question
+    int[] answers = {1, 0, 0, 1, 2, 0, 1, 1, 1, 2, 1, 2, 1, 0, 2};
+
+    Timer timer;
+
+    public OnlineExamSystem() {
+        setTitle("📝 Online Examination System");
+        setSize(700, 400);
+        setLayout(new BorderLayout());
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        // Top Panel for Timer
+        JPanel topPanel = new JPanel(new BorderLayout());
+        timerLabel = new JLabel("Time Left: " + timeLeft + "s", JLabel.RIGHT);
+        timerLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        topPanel.add(timerLabel, BorderLayout.EAST);
+        add(topPanel, BorderLayout.NORTH);
+
+        // Center Panel for Question + Options
+        JPanel centerPanel = new JPanel(new GridLayout(5, 1, 10, 10));
+        questionLabel = new JLabel();
+        questionLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        centerPanel.add(questionLabel);
+
+        option1 = new JRadioButton();
+        option2 = new JRadioButton();
+        option3 = new JRadioButton();
+        option4 = new JRadioButton();
+
+        optionsGroup = new ButtonGroup();
+        optionsGroup.add(option1);
+        optionsGroup.add(option2);
+        optionsGroup.add(option3);
+        optionsGroup.add(option4);
+
+        centerPanel.add(option1);
+        centerPanel.add(option2);
+        centerPanel.add(option3);
+        centerPanel.add(option4);
+
+        add(centerPanel, BorderLayout.CENTER);
+
+        // Bottom Panel for Buttons
+        JPanel bottomPanel = new JPanel();
+        nextButton = new JButton("Next");
+        submitButton = new JButton("Submit");
+        nextButton.addActionListener(this);
+        submitButton.addActionListener(this);
+
+        bottomPanel.add(nextButton);
+        bottomPanel.add(submitButton);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        // Start Exam
+        loadQuestion(currentQuestion);
+
+        // Start Timer
+        timer = new Timer(1000, e -> {
+            timeLeft--;
+            timerLabel.setText("Time Left: " + timeLeft + "s");
+            if (timeLeft <= 0) {
+                endExam();
+            }
+        });
+        timer.start();
+
+        setVisible(true);
+    }
+
+    private void loadQuestion(int index) {
+        if (index < questions.length) {
+            questionLabel.setText(questions[index]);
+            option1.setText(options[index][0]);
+            option2.setText(options[index][1]);
+            option3.setText(options[index][2]);
+            option4.setText(options[index][3]);
+            optionsGroup.clearSelection();
+        }
+    }
+
+    private int getSelectedOption() {
+        if (option1.isSelected()) return 0;
+        if (option2.isSelected()) return 1;
+        if (option3.isSelected()) return 2;
+        if (option4.isSelected()) return 3;
+        return -1;
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == nextButton) {
+            int selected = getSelectedOption();
+            if (selected == answers[currentQuestion]) {
+                score++;
+            }
+            currentQuestion++;
+            if (currentQuestion < questions.length) {
+                loadQuestion(currentQuestion);
+            } else {
+                endExam();
+            }
+        } else if (e.getSource() == submitButton) {
+            endExam();
+        }
+    }
+
+    private void endExam() {
+        timer.stop();
+        int total = questions.length;
+        JOptionPane.showMessageDialog(this,
+                "✅ Exam Finished!\nYour Score: " + score + "/" + total,
+                "Result", JOptionPane.INFORMATION_MESSAGE);
+        System.exit(0);
+    }
+
+    public static void main(String[] args) {
+        new OnlineExamSystem();
+    }
+}

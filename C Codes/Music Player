@@ -1,0 +1,349 @@
+/*
+ playlist_mega.c
+ Creative Music Playlist Manager (C)
+ Features:
+  - Circular doubly linked list for playlist
+  - Queue for "Up Next"
+  - Favorites list
+  - Shuffle play without repeat (Fisher-Yates)
+  - Search songs by title/artist (substring match)
+  - Save / Load playlist to file (playlist.txt)
+  - Play counts & analytics (most played)
+  - ASCII visualizer while "playing"
+  - Cross-platform sleep wrapper
+ Compile:
+  gcc -Wall -Wextra playlist_mega.c -o playlist_mega
+ Run:
+  ./playlist_mega   (Linux/macOS)
+  playlist_mega.exe (Windows + MinGW)
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#ifdef _WIN32
+  #include <windows.h>
+  #define sleep_ms(ms) Sleep(ms)
+#else
+  #include <unistd.h>
+  #define sleep_ms(ms) usleep((ms) * 1000)
+#endif
+
+#define MAX_TITLE 128
+#define MAX_ARTIST 128
+#define PLAYLIST_FILE "playlist.txt"
+#define VISUALIZE_MS 120   /* ms between visualizer frames */
+
+// ---------- Data structures ----------
+
+typedef struct Song {
+    int id;
+    char title[MAX_TITLE];
+    char artist[MAX_ARTIST];
+    int duration;       // seconds (optional)
+    int play_count;
+    int favorite;       // 0/1
+    struct Song *next;
+    struct Song *prev;
+} Song;
+
+/* Queue node for Up-Next queue */
+typedef struct QNode {
+    Song *song;
+    struct QNode *next;
+} QNode;
+
+typedef struct Queue {
+    QNode *front, *rear;
+} Queue;
+
+/* Playlist head (circular doubly-linked), and pointer to current track */
+static Song *head = NULL;
+static Song *current = NULL;
+static int song_counter = 0; // assign incremental ids
+
+// Favorites is just a separate list (not circular) for quick display
+static Song *fav_head = NULL;
+
+// Up-next queue
+void initQueue(Queue *q) { q->front = q->rear = NULL; }
+int isQueueEmpty(Queue *q) { return q->front == NULL; }
+void enqueue(Queue *q, Song *s) {
+    QNode *n = (QNode*)malloc(sizeof(QNode));
+    if (!n) { perror("malloc"); return; }
+    n->song = s; n->next = NULL;
+    if (!q->rear) q->front = q->rear = n;
+    else { q->rear->next = n; q->rear = n; }
+}
+Song* dequeue(Queue *q) {
+    if (!q->front) return NULL;
+    QNode *t = q->front;
+    Song *s = t->song;
+    q->front = t->next;
+    if (!q->front) q->rear = NULL;
+    free(t);
+    return s;
+}
+
+// ---------- Utility helpers ----------
+
+/* Trim trailing newline from fgets input */
+void trim_newline(char *s) {
+    size_t L = strlen(s);
+    if (L && s[L-1] == '\n') s[L-1] = '\0';
+}
+
+/* Create a new song node (returns pointer) */
+Song* createSong(const char *title, const char *artist, int duration) {
+    Song *s = (Song*)malloc(sizeof(Song));
+    if (!s) { perror("malloc"); exit(EXIT_FAILURE); }
+    s->id = ++song_counter;
+    strncpy(s->title, title, MAX_TITLE-1); s->title[MAX_TITLE-1] = '\0';
+    strncpy(s->artist, artist, MAX_ARTIST-1); s->artist[MAX_ARTIST-1] = '\0';
+    s->duration = duration;
+    s->play_count = 0;
+    s->favorite = 0;
+    s->next = s->prev = NULL;
+    return s;
+}
+
+/* Append to circular playlist */
+void addSong(const char *title, const char *artist, int duration) {
+    Song *n = createSong(title, artist, duration);
+    if (!head) {
+        head = n;
+        head->next = head->prev = head;
+        current = head;
+    } else {
+        Song *tail = head->prev;
+        tail->next = n;
+        n->prev = tail;
+        n->next = head;
+        head->prev = n;
+    }
+    printf("Added: [%d] %s - %s\n", n->id, n->title, n->artist);
+}
+
+/* Find song by id */
+Song* findById(int id) {
+    if (!head) return NULL;
+    Song *t = head;
+    do {
+        if (t->id == id) return t;
+        t = t->next;
+    } while (t != head);
+    return NULL;
+}
+
+/* Mark/unmark favorite */
+void markFavorite(Song *s, int val) {
+    if (!s) return;
+    s->favorite = val ? 1 : 0;
+    printf("%s favorite: %s - %s\n", val ? "Marked" : "Unmarked", s->title, s->artist);
+}
+
+/* Display playlist (with current pointer and fav) */
+void displayPlaylist(void) {
+    if (!head) { printf("Playlist is empty.\n"); return; }
+    printf("\n--- Playlist ---\n");
+    Song *t = head;
+    do {
+        printf("[%d] %s - %s  (plays:%d)%s%s\n",
+            t->id, t->title, t->artist, t->play_count,
+            t->favorite ? " [★]" : "",
+            (t == current) ? "  <-- current" : ""
+        );
+        t = t->next;
+    } while (t != head);
+}
+
+/* Display favorites */
+void showFavorites(void) {
+    if (!head) { printf("No songs.\n"); return; }
+    int found = 0;
+    Song *t = head;
+    printf("\n--- Favorites ---\n");
+    do {
+        if (t->favorite) {
+            printf("[%d] %s - %s (plays:%d)\n", t->id, t->title, t->artist, t->play_count);
+            found = 1;
+        }
+        t = t->next;
+    } while (t != head);
+    if (!found) printf("No favorites yet.\n");
+}
+
+/* Basic substring search (case-insensitive) */
+int str_contains_ci(const char *hay, const char *needle) {
+    if (!hay || !needle) return 0;
+    char H[512]; char N[256];
+    strncpy(H, hay, sizeof(H)-1); H[sizeof(H)-1]='\0';
+    strncpy(N, needle, sizeof(N)-1); N[sizeof(N)-1]='\0';
+    for (char *p = H; *p; ++p) if (*p >= 'A' && *p <= 'Z') *p += 32;
+    for (char *p = N; *p; ++p) if (*p >= 'A' && *p <= 'Z') *p += 32;
+    return strstr(H, N) != NULL;
+}
+
+/* Search by title or artist */
+void searchSongs(const char *query) {
+    if (!head) { printf("Playlist empty.\n"); return; }
+    int found = 0;
+    Song *t = head;
+    printf("\nSearch results for \"%s\":\n", query);
+    do {
+        if (str_contains_ci(t->title, query) || str_contains_ci(t->artist, query)) {
+            printf("[%d] %s - %s (plays:%d)%s\n", t->id, t->title, t->artist, t->play_count, t->favorite ? " [★]" : "");
+            found = 1;
+        }
+        t = t->next;
+    } while (t != head);
+    if (!found) printf("No matches.\n");
+}
+
+/* ASCII visualizer */
+void asciiVisualizer(int seconds) {
+    int frames = (seconds*1000) / VISUALIZE_MS;
+    for (int f = 0; f < frames; ++f) {
+        int width = 40;
+        int peak = rand() % (width-5) + 2;
+        for (int i = 0; i < width; ++i) {
+            if (i < peak) putchar('#');
+            else putchar(' ');
+        }
+        printf("\r"); fflush(stdout);
+        sleep_ms(VISUALIZE_MS);
+    }
+    putchar('\n');
+}
+
+/* Play a song */
+void playSong(Song *s) {
+    if (!s) { printf("No song to play.\n"); return; }
+    printf("\n▶ Playing [%d] %s - %s\n", s->id, s->title, s->artist);
+    s->play_count++;
+    int dur = s->duration > 0 ? s->duration : 3;
+    asciiVisualizer(dur);
+}
+
+/* Play current, next, prev */
+void playCurrent(void) { if (current) playSong(current); else printf("Playlist empty.\n"); }
+void playNext(void) { if (current) { current = current->next; playSong(current); } else printf("Playlist empty.\n"); }
+void playPrev(void) { if (current) { current = current->prev; playSong(current); } else printf("Playlist empty.\n"); }
+
+/* Shuffle play */
+void shufflePlay(void) {
+    if (!head) { printf("Playlist empty.\n"); return; }
+    int n = 0;
+    Song *t = head;
+    do { n++; t = t->next; } while (t != head);
+    Song **arr = (Song**)malloc(n * sizeof(Song*));
+    t = head; int i = 0;
+    do { arr[i++] = t; t = t->next; } while (t != head);
+    srand((unsigned)time(NULL));
+    for (int k = n-1; k > 0; --k) { int r = rand() % (k+1); Song *tmp = arr[k]; arr[k] = arr[r]; arr[r] = tmp; }
+    printf("\n--- Shuffle Play (%d songs) ---\n", n);
+    for (int k = 0; k < n; ++k) { playSong(arr[k]); current = arr[k]; }
+    free(arr);
+}
+
+/* Queue mode */
+void playQueueMode(Queue *q) {
+    if (!q || isQueueEmpty(q)) { printf("Queue empty.\n"); return;}
+    printf("\n--- Playing Up Next Queue ---\n");
+    Song *s;
+    while ((s = dequeue(q)) != NULL) { playSong(s); current = s; }
+}
+
+/* Most played */
+void showMostPlayed(void) {
+    if (!head) { printf("Playlist empty.\n"); return; }
+    Song *t = head, *best = head;
+    do { if (t->play_count > best->play_count) best = t; t = t->next; } while (t != head);
+    printf("\nMost played: [%d] %s - %s (plays: %d)\n", best->id, best->title, best->artist, best->play_count);
+}
+
+/* Save / Load playlist */
+void savePlaylistToFile(void) {
+    FILE *f = fopen(PLAYLIST_FILE, "w"); if (!f) { perror("fopen"); return; }
+    if (!head) { fclose(f); printf("Saved empty playlist.\n"); return; }
+    Song *t = head;
+    do { fprintf(f, "%s|%s|%d|%d|%d\n", t->title, t->artist, t->duration, t->play_count, t->favorite); t = t->next; } while (t != head);
+    fclose(f); printf("Playlist saved to %s\n", PLAYLIST_FILE);
+}
+
+void clearPlaylist(void) {
+    if (!head) return;
+    Song *t = head->next;
+    while (t != head) { Song *nx = t->next; free(t); t = nx; }
+    free(head); head = current = NULL; song_counter = 0;
+}
+
+void loadPlaylistFromFile(void) {
+    FILE *f = fopen(PLAYLIST_FILE, "r");
+    if (!f) { printf("No playlist file found (%s)\n", PLAYLIST_FILE); return; }
+    clearPlaylist();
+    char line[1024];
+    while (fgets(line, sizeof(line), f)) {
+        trim_newline(line); if (strlen(line) == 0) continue;
+        char *p = strtok(line, "|");
+        if (!p) continue; char title[MAX_TITLE]; strncpy(title, p, MAX_TITLE-1); title[MAX_TITLE-1]='\0';
+        p = strtok(NULL, "|"); char artist[MAX_ARTIST]; if (!p) continue; strncpy(artist, p, MAX_ARTIST-1); artist[MAX_ARTIST-1]='\0';
+        p = strtok(NULL, "|"); int dur = p ? atoi(p) : 0;
+        p = strtok(NULL, "|"); int plays = p ? atoi(p) : 0;
+        p = strtok(NULL, "|"); int fav = p ? atoi(p) : 0;
+        addSong(title, artist, dur);
+        Song *s = findById(song_counter); if (s) { s->play_count = plays; s->favorite = fav; }
+    }
+    fclose(f); printf("Loaded playlist from %s\n", PLAYLIST_FILE);
+}
+
+/* Helper: read line safely */
+void read_line(char *buf, size_t n) { if (!fgets(buf, (int)n, stdin)) { buf[0]='\0'; return; } trim_newline(buf); }
+
+/* CLI menu */
+void printMenu(void) {
+    printf("\n=== Music Playlist Manager (Creative) ===\n");
+    printf("1. Add Song\n2. Show Playlist\n3. Play Current\n4. Play Next\n5. Play Previous\n6. Delete Current Song\n");
+    printf("7. Shuffle Play\n8. Search Songs\n9. Mark/Unmark Favorite\n10. Show Favorites\n");
+    printf("11. Queue Up Next\n12. Play Queue\n13. Show Most Played\n14. Save Playlist\n15. Load Playlist\n16. Exit\nEnter choice: ");
+}
+
+int main(void) {
+    srand((unsigned)time(NULL));
+    Queue q; initQueue(&q);
+    char buf[256];
+    while (1) {
+        printMenu();
+        if (!fgets(buf, sizeof(buf), stdin)) break;
+        int choice = atoi(buf); if (choice == 0 && buf[0]!='0') continue;
+        if (choice == 1) {
+            char title[MAX_TITLE], artist[MAX_ARTIST]; int dur=0;
+            printf("Enter title: "); read_line(title, sizeof(title));
+            printf("Enter artist: "); read_line(artist, sizeof(artist));
+            printf("Enter duration (sec, 0 if unknown): "); read_line(buf,sizeof(buf)); dur=atoi(buf);
+            addSong(title,artist,dur);
+        } else if (choice==2) displayPlaylist();
+        else if (choice==3) playCurrent();
+        else if (choice==4) playNext();
+        else if (choice==5) playPrev();
+        else if (choice==6) {
+            if(!current) { printf("Playlist empty.\n"); } else { Song *toDel = current; current=(toDel->next==toDel)?NULL:toDel->next; if(toDel->next==toDel){ free(toDel); head=current=NULL;} else { toDel->prev->next=toDel->next; toDel->next->prev=toDel->prev; if(toDel==head) head=toDel->next; free(toDel);} }
+        } else if (choice==7) shufflePlay();
+        else if (choice==8) { printf("Enter search query: "); read_line(buf,sizeof(buf)); searchSongs(buf);}
+        else if (choice==9) { printf("Enter song id to toggle favorite: "); read_line(buf,sizeof(buf)); int id=atoi(buf); Song *s=findById(id); if(!s) printf("No song with id %d\n",id); else markFavorite(s,!s->favorite);}
+        else if (choice==10) showFavorites();
+        else if (choice==11) { printf("Enter song id to enqueue (Up Next): "); read_line(buf,sizeof(buf)); int id=atoi(buf); Song *s=findById(id); if(!s) printf("No song with id %d\n",id); else {enqueue(&q,s); printf("Enqueued: [%d] %s\n",s->id,s->title);}}
+        else if (choice==12) playQueueMode(&q);
+        else if (choice==13) showMostPlayed();
+        else if (choice==14) savePlaylistToFile();
+        else if (choice==15) loadPlaylistFromFile();
+        else if (choice==16) { printf("Exiting. Goodbye!\n"); break; }
+        else printf("Invalid choice.\n");
+    }
+    // cleanup
+    if(head){ Song *t=head->next; while(t!=head){ Song *nx=t->next; free(t); t=nx;} free(head); }
+    while(!isQueueEmpty(&q)) dequeue(&q);
+    return 0;
+}

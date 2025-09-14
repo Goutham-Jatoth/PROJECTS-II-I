@@ -1,0 +1,207 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define MAX_STUDENTS 200
+#define MAX_BRANCHES 5
+#define MAX_HALLS 3
+#define MAX_EXAMS 3
+#define MAX_ROWS 15
+#define MAX_COLS 15
+#define MAX_NAME 50
+
+const char* branches[MAX_BRANCHES] = {"CS","ECE","ME","EE","CE"};
+const char* preferences[] = {"Front","Back","Exit"};
+
+typedef struct Student {
+    int roll;
+    char name[MAX_NAME];
+    char branch[MAX_NAME];
+    char preference[MAX_NAME]; // Front, Back, Exit
+} Student;
+
+typedef struct Hall {
+    char name[MAX_NAME];
+    int rows;
+    int cols;
+    Student* seats[MAX_ROWS][MAX_COLS];
+} Hall;
+
+typedef struct Exam {
+    char name[MAX_NAME];
+    int studentCount;
+    Student students[MAX_STUDENTS];
+    int hallCount;
+    Hall halls[MAX_HALLS];
+} Exam;
+
+Exam exams[MAX_EXAMS];
+int examCount = 0;
+
+// Function Prototypes
+void generateDemoData();
+void displayDemoData();
+int isSafe(Hall h,int r,int c, Student* s);
+int getSeatScore(Hall h,int r,int c, Student* s);
+void generateSeatingWithPreferences(Exam* ex);
+void displaySeatingASCII(Hall h);
+void saveSeating(Hall h,char* examName);
+
+int main(){
+    srand(time(0));
+    generateDemoData();
+    displayDemoData();
+
+    // Generate optimized seating for all exams
+    for(int e=0;e<examCount;e++){
+        printf("\n=== Generating Seating for %s ===\n",exams[e].name);
+        generateSeatingWithPreferences(&exams[e]);
+    }
+
+    return 0;
+}
+
+// --- Demo Data Generator ---
+void generateDemoData(){
+    examCount = MAX_EXAMS;
+    for(int e=0;e<examCount;e++){
+        sprintf(exams[e].name,"Exam%d",e+1);
+        exams[e].studentCount = 50 + rand()%51; // 50-100 students
+        exams[e].hallCount = MAX_HALLS;
+
+        // Generate students
+        for(int s=0;s<exams[e].studentCount;s++){
+            exams[e].students[s].roll = s+1;
+            sprintf(exams[e].students[s].name,"Student%d",s+1);
+            strcpy(exams[e].students[s].branch, branches[s % MAX_BRANCHES]);
+            strcpy(exams[e].students[s].preference, preferences[rand()%3]);
+        }
+
+        // Generate halls
+        for(int h=0;h<exams[e].hallCount;h++){
+            sprintf(exams[e].halls[h].name,"Hall%c",'A'+h);
+            exams[e].halls[h].rows = 5 + rand()%6; // 5-10 rows
+            exams[e].halls[h].cols = 5 + rand()%6; // 5-10 cols
+            // Initialize seats
+            for(int r=0;r<exams[e].halls[h].rows;r++)
+                for(int c=0;c<exams[e].halls[h].cols;c++)
+                    exams[e].halls[h].seats[r][c] = NULL;
+        }
+    }
+    printf("Demo data generated for %d exams.\n",examCount);
+}
+
+void displayDemoData(){
+    for(int e=0;e<examCount;e++){
+        printf("\n=== %s ===\n",exams[e].name);
+        printf("Students:\n");
+        for(int s=0;s<exams[e].studentCount;s++){
+            printf("Roll:%3d Name:%-10s Branch:%-3s Pref:%s\n",
+                exams[e].students[s].roll,
+                exams[e].students[s].name,
+                exams[e].students[s].branch,
+                exams[e].students[s].preference);
+        }
+        printf("Halls:\n");
+        for(int h=0;h<exams[e].hallCount;h++){
+            printf("%s - Rows:%d, Cols:%d\n",
+                exams[e].halls[h].name,
+                exams[e].halls[h].rows,
+                exams[e].halls[h].cols);
+        }
+    }
+}
+
+// --- Seating Functions ---
+int isSafe(Hall h,int r,int c, Student* s){
+    int dr[]={-1,0,1,0};
+    int dc[]={0,1,0,-1};
+    for(int k=0;k<4;k++){
+        int nr=r+dr[k], nc=c+dc[k];
+        if(nr>=0 && nr<h.rows && nc>=0 && nc<h.cols && h.seats[nr][nc]!=NULL){
+            if(strcmp(h.seats[nr][nc]->branch,s->branch)==0) return 0;
+            if(abs(h.seats[nr][nc]->roll - s->roll)==1) return 0;
+        }
+    }
+    return 1;
+}
+
+int getSeatScore(Hall h,int r,int c, Student* s){
+    int score=0;
+    if(strcmp(s->preference,"Front")==0) score += (h.rows - r);
+    if(strcmp(s->preference,"Back")==0) score += r;
+    if(strcmp(s->preference,"Exit")==0) score += (c==0 || c==h.cols-1) ? 10 : 0;
+    return score;
+}
+
+void generateSeatingWithPreferences(Exam* ex){
+    for(int s=0;s<ex->studentCount;s++){
+        Student* stu = &ex->students[s];
+        int bestScore=-1, bestR=-1, bestC=-1, hallIdx=-1;
+        for(int hIdx=0;hIdx<ex->hallCount;hIdx++){
+            Hall* hall = &ex->halls[hIdx];
+            for(int r=0;r<hall->rows;r++){
+                for(int c=0;c<hall->cols;c++){
+                    if(hall->seats[r][c]==NULL && isSafe(*hall,r,c,stu)){
+                        int score = getSeatScore(*hall,r,c,stu);
+                        if(score>bestScore){
+                            bestScore = score;
+                            bestR=r; bestC=c; hallIdx=hIdx;
+                        }
+                    }
+                }
+            }
+        }
+        if(bestScore>-1){
+            ex->halls[hallIdx].seats[bestR][bestC]=stu;
+        } else {
+            printf("Warning: Could not assign preferred safe seat for %s!\n", stu->name);
+        }
+    }
+
+    // Display ASCII seating and save to file
+    for(int h=0;h<ex->hallCount;h++){
+        displaySeatingASCII(ex->halls[h]);
+        saveSeating(ex->halls[h], ex->name);
+    }
+}
+
+void displaySeatingASCII(Hall h){
+    printf("\n=== ASCII Seating Map for Hall: %s ===\n", h.name);
+    for(int i=0;i<h.rows;i++){
+        for(int j=0;j<h.cols;j++){
+            if(h.seats[i][j]!=NULL){
+                char prefChar = h.seats[i][j]->preference[0]; // F, B, or E
+                printf("[%02d-%s-%c] ", 
+                    h.seats[i][j]->roll, 
+                    h.seats[i][j]->branch, 
+                    prefChar);
+            } else {
+                printf("   -     ");
+            }
+        }
+        printf("\n");
+    }
+}
+
+void saveSeating(Hall h,char* examName){
+    char filename[100];
+    sprintf(filename,"%s_%s_seating.txt",examName,h.name);
+    FILE* fp = fopen(filename,"w");
+    if(!fp){ printf("Error saving seating.\n"); return;}
+    fprintf(fp,"Seating for Exam: %s, Hall: %s\n",examName,h.name);
+    for(int i=0;i<h.rows;i++){
+        for(int j=0;j<h.cols;j++){
+            if(h.seats[i][j]!=NULL){
+                char prefChar = h.seats[i][j]->preference[0];
+                fprintf(fp,"[%02d-%s-%c] ", h.seats[i][j]->roll,h.seats[i][j]->branch,prefChar);
+            } else {
+                fprintf(fp,"   -     ");
+            }
+        }
+        fprintf(fp,"\n");
+    }
+    fclose(fp);
+    printf("Seating saved to file: %s\n",filename);
+}

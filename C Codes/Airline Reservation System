@@ -1,0 +1,240 @@
+/*
+ Enhanced Airline Reservation System in C
+ Features:
+ - VIP Frequent Flyers
+ - Price calculation & discount
+ - Flight sorting by departure
+ - ASCII graphical seat map
+ Compile: gcc airline_system_enhanced.c -o airline_enhanced
+ Run: ./airline_enhanced
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_FLIGHTS 50
+#define MAX_PASSENGERS 200
+#define MAX_NAME 50
+#define ROWS 10
+#define COLS 6
+#define BASE_PRICE 500
+#define VIP_DISCOUNT 20 // percent
+#define FLIGHT_FILE "flights.dat"
+#define PASS_FILE "passengers.dat"
+
+typedef struct {
+    int id;
+    char flightNumber[10];
+    char source[30];
+    char destination[30];
+    char departure[6]; // HH:MM
+    char arrival[6];
+    int seats[ROWS][COLS]; // 0=empty, >0=ticket
+    int bookedSeats;
+} Flight;
+
+typedef struct {
+    int ticketNo;
+    char name[MAX_NAME];
+    int flightId;
+    int row, col;
+    int vip; // 0=no, 1=yes
+} Passenger;
+
+Flight flights[MAX_FLIGHTS];
+Passenger passengers[MAX_PASSENGERS];
+int flightCount=0, passengerCount=0, ticketCounter=1000;
+
+void addFlight();
+void displayFlights();
+void deleteFlight();
+void bookTicket();
+void cancelTicket();
+void displayPassengers();
+void searchFlights();
+void viewSeatMap();
+void saveData();
+void loadData();
+void sortFlightsByDeparture();
+int calculatePrice(Passenger *p);
+int countPassengerFlights(const char *name);
+void clearInputBuffer();
+
+int main(){
+    loadData();
+    int choice;
+    while(1){
+        printf("\n=== Enhanced Airline Reservation System ===\n");
+        printf("1.Add Flight 2.Delete Flight 3.Display Flights 4.Search Flights\n");
+        printf("5.Book Ticket 6.Cancel Ticket 7.Display Passengers 8.View Seat Map\n");
+        printf("9.Save & Exit\nEnter choice: "); scanf("%d",&choice); clearInputBuffer();
+        switch(choice){
+            case 1: addFlight(); break;
+            case 2: deleteFlight(); break;
+            case 3: sortFlightsByDeparture(); displayFlights(); break;
+            case 4: searchFlights(); break;
+            case 5: bookTicket(); break;
+            case 6: cancelTicket(); break;
+            case 7: displayPassengers(); break;
+            case 8: viewSeatMap(); break;
+            case 9: saveData(); printf("Saved & exiting.\n"); exit(0);
+            default: printf("Invalid choice.\n");
+        }
+    }
+    return 0;
+}
+
+void clearInputBuffer(){ int c; while((c=getchar())!='\n' && c!=EOF); }
+
+void addFlight(){
+    if(flightCount>=MAX_FLIGHTS){ printf("Max flights reached.\n"); return;}
+    Flight f; f.id=flightCount+1;
+    printf("Flight Number: "); fgets(f.flightNumber,sizeof(f.flightNumber),stdin); f.flightNumber[strcspn(f.flightNumber,"\n")]=0;
+    printf("Source: "); fgets(f.source,sizeof(f.source),stdin); f.source[strcspn(f.source,"\n")]=0;
+    printf("Destination: "); fgets(f.destination,sizeof(f.destination),stdin); f.destination[strcspn(f.destination,"\n")]=0;
+    printf("Departure HH:MM: "); fgets(f.departure,sizeof(f.departure),stdin); f.departure[strcspn(f.departure,"\n")]=0;
+    printf("Arrival HH:MM: "); fgets(f.arrival,sizeof(f.arrival),stdin); f.arrival[strcspn(f.arrival,"\n")]=0;
+    f.bookedSeats=0;
+    for(int i=0;i<ROWS;i++) for(int j=0;j<COLS;j++) f.seats[i][j]=0;
+    flights[flightCount++]=f;
+    printf("Flight added with ID %d\n",f.id);
+}
+
+// Sort flights by departure HH:MM (simple bubble sort)
+void sortFlightsByDeparture(){
+    for(int i=0;i<flightCount-1;i++){
+        for(int j=0;j<flightCount-i-1;j++){
+            if(strcmp(flights[j].departure,flights[j+1].departure)>0){
+                Flight temp=flights[j]; flights[j]=flights[j+1]; flights[j+1]=temp;
+            }
+        }
+    }
+}
+
+void displayFlights(){
+    if(flightCount==0){ printf("No flights.\n"); return;}
+    printf("\n--- Flights ---\n");
+    for(int i=0;i<flightCount;i++){
+        Flight f=flights[i];
+        printf("ID:%d | %s | %s -> %s | Dep:%s Arr:%s | Seats:%d/%d\n",
+               f.id,f.flightNumber,f.source,f.destination,f.departure,f.arrival,f.bookedSeats,ROWS*COLS);
+    }
+}
+
+void deleteFlight(){
+    int fid; printf("Enter Flight ID to delete: "); scanf("%d",&fid); clearInputBuffer();
+    int index=-1;
+    for(int i=0;i<flightCount;i++) if(flights[i].id==fid){ index=i; break;}
+    if(index==-1){ printf("Flight not found.\n"); return;}
+    for(int i=0;i<passengerCount;i++) if(passengers[i].flightId==fid) passengers[i].flightId=0;
+    for(int i=index;i<flightCount-1;i++) flights[i]=flights[i+1];
+    flightCount--;
+    printf("Flight deleted.\n");
+}
+
+// Count flights booked by passenger for VIP
+int countPassengerFlights(const char *name){
+    int cnt=0;
+    for(int i=0;i<passengerCount;i++) if(strcasecmp(passengers[i].name,name)==0) cnt++;
+    return cnt;
+}
+
+int calculatePrice(Passenger *p){
+    int price=BASE_PRICE;
+    if(p->vip) price=price*(100-VIP_DISCOUNT)/100;
+    return price;
+}
+
+void bookTicket(){
+    int fid; printf("Flight ID to book: "); scanf("%d",&fid); clearInputBuffer();
+    Flight *f=NULL;
+    for(int i=0;i<flightCount;i++) if(flights[i].id==fid){ f=&flights[i]; break;}
+    if(!f){ printf("Flight not found.\n"); return;}
+    if(f->bookedSeats>=ROWS*COLS){ printf("Flight full.\n"); return;}
+    char pname[MAX_NAME]; printf("Passenger Name: "); fgets(pname,sizeof(pname),stdin); pname[strcspn(pname,"\n")]=0;
+    // Display seat map
+    printf("Seat Map:\n");
+    for(int i=0;i<ROWS;i++){
+        for(int j=0;j<COLS;j++){
+            if(f->seats[i][j]==0) printf("[%c%d]",'A'+j,i+1);
+            else printf("[X]");
+        }
+        printf("\n");
+    }
+    char seat[3]; int r=-1,c=-1;
+    while(1){
+        printf("Choose Seat (e.g., B5): "); fgets(seat,sizeof(seat),stdin); seat[strcspn(seat,"\n")]=0;
+        if(strlen(seat)<2){ printf("Invalid!\n"); continue;}
+        c=seat[0]-'A'; r=atoi(&seat[1])-1;
+        if(r>=0 && r<ROWS && c>=0 && c<COLS && f->seats[r][c]==0) break;
+        else printf("Seat unavailable!\n");
+    }
+    f->seats[r][c]=++ticketCounter; f->bookedSeats++;
+    Passenger p; p.ticketNo=ticketCounter; strncpy(p.name,pname,MAX_NAME); p.flightId=f->id; p.row=r; p.col=c;
+    p.vip = (countPassengerFlights(pname)>=3)?1:0;
+    passengers[passengerCount++]=p;
+    int price=calculatePrice(&p);
+    printf("Ticket Booked! Ticket:%d | Seat:%c%d | Price: %d | VIP:%s\n",p.ticketNo,'A'+c,r+1,price,p.vip?"YES":"NO");
+}
+
+void cancelTicket(){
+    int tno; printf("Ticket No to cancel: "); scanf("%d",&tno); clearInputBuffer();
+    int index=-1; Passenger *p=NULL; Flight *f=NULL;
+    for(int i=0;i<passengerCount;i++) if(passengers[i].ticketNo==tno){ index=i; p=&passengers[i]; break;}
+    if(index==-1){ printf("Ticket not found.\n"); return;}
+    for(int i=0;i<flightCount;i++) if(flights[i].id==p->flightId){ f=&flights[i]; break;}
+    if(f) { f->seats[p->row][p->col]=0; f->bookedSeats--; }
+    for(int i=index;i<passengerCount-1;i++) passengers[i]=passengers[i+1];
+    passengerCount--;
+    printf("Ticket canceled.\n");
+}
+
+void displayPassengers(){
+    if(passengerCount==0){ printf("No passengers.\n"); return;}
+    printf("\n--- Passengers ---\n");
+    for(int i=0;i<passengerCount;i++){
+        Passenger p=passengers[i];
+        printf("Ticket:%d | Name:%s | FlightID:%d | Seat:%c%d | VIP:%s\n",p.ticketNo,p.name,p.flightId,'A'+p.col,p.row+1,p.vip?"YES":"NO");
+    }
+}
+
+void searchFlights(){
+    char src[30],dest[30]; printf("Source: "); fgets(src,sizeof(src),stdin); src[strcspn(src,"\n")]=0;
+    printf("Destination: "); fgets(dest,sizeof(dest),stdin); dest[strcspn(dest,"\n")]=0;
+    int found=0;
+    for(int i=0;i<flightCount;i++)
+        if(strcasecmp(flights[i].source,src)==0 && strcasecmp(flights[i].destination,dest)==0){
+            Flight f=flights[i];
+            printf("ID:%d | %s | Dep:%s Arr:%s | Seats:%d/%d\n",f.id,f.flightNumber,f.departure,f.arrival,f.bookedSeats,ROWS*COLS);
+            found=1;
+        }
+    if(!found) printf("No flights found.\n");
+}
+
+void viewSeatMap(){
+    int fid; printf("Flight ID: "); scanf("%d",&fid); clearInputBuffer();
+    Flight *f=NULL; for(int i=0;i<flightCount;i++) if(flights[i].id==fid){ f=&flights[i]; break;}
+    if(!f){ printf("Flight not found.\n"); return;}
+    printf("Seat Map for Flight %s:\n",f->flightNumber);
+    for(int i=0;i<ROWS;i++){
+        for(int j=0;j<COLS;j++){
+            if(f->seats[i][j]==0) printf("[ ]");
+            else printf("[X]");
+        }
+        printf("\n");
+    }
+}
+
+void saveData(){
+    FILE *ff=fopen(FLIGHT_FILE,"wb"); if(ff){ fwrite(flights,sizeof(Flight),flightCount,ff); fclose(ff);}
+    FILE *pf=fopen(PASS_FILE,"wb"); if(pf){ fwrite(passengers,sizeof(Passenger),passengerCount,pf); fclose(pf);}
+}
+
+void loadData(){
+    FILE *ff=fopen(FLIGHT_FILE,"rb"); if(ff){ flightCount=fread(flights,sizeof(Flight),MAX_FLIGHTS,ff); fclose(ff);}
+    FILE *pf=fopen(PASS_FILE,"rb"); if(pf){ passengerCount=fread(passengers,sizeof(Passenger),MAX_PASSENGERS,pf); fclose(pf);}
+    int maxTicket=1000;
+    for(int i=0;i<passengerCount;i++) if(passengers[i].ticketNo>maxTicket) maxTicket=passengers[i].ticketNo;
+    ticketCounter=maxTicket;
+}

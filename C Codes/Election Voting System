@@ -1,0 +1,187 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_NAME 50
+#define MAX_RANK 10
+#define MAX_CANDIDATES 20
+#define MAX_VOTERS 100
+#define CANDIDATE_FILE "candidates.dat"
+#define VOTER_FILE "voters.dat"
+
+typedef struct Candidate {
+    int id;
+    char name[MAX_NAME];
+    int votes;
+    int eliminated; // 0=no,1=yes
+} Candidate;
+
+typedef struct Voter {
+    int voterId;
+    int ranks[MAX_CANDIDATES]; // candidate IDs ranked
+} Voter;
+
+Candidate candidates[MAX_CANDIDATES];
+Voter voters[MAX_VOTERS];
+int candidateCount=0;
+int voterCount=0;
+
+void clearInputBuffer(){ int c; while((c=getchar())!='\n' && c!=EOF); }
+void addCandidate();
+void displayCandidates();
+void addVoter();
+void castRankedVotes();
+void rankedChoiceVoting();
+void saveCandidates();
+void loadCandidates();
+void saveVoters();
+void loadVoters();
+
+int main(){
+    loadCandidates();
+    loadVoters();
+    int choice;
+    while(1){
+        printf("\n=== College Election (Ranked Choice Voting) ===\n");
+        printf("1. Add Candidate\n2. Display Candidates\n3. Add Voter\n");
+        printf("4. Cast Ranked Votes\n5. Calculate Winner\n6. Save & Exit\nEnter choice: ");
+        if(scanf("%d",&choice)!=1){ clearInputBuffer(); continue;}
+        clearInputBuffer();
+        switch(choice){
+            case 1: addCandidate(); break;
+            case 2: displayCandidates(); break;
+            case 3: addVoter(); break;
+            case 4: castRankedVotes(); break;
+            case 5: rankedChoiceVoting(); break;
+            case 6: saveCandidates(); saveVoters(); printf("Data saved. Exiting.\n"); exit(0);
+            default: printf("Invalid choice!\n");
+        }
+    }
+}
+
+// --- Candidate Functions ---
+void addCandidate(){
+    if(candidateCount>=MAX_CANDIDATES){ printf("Max candidates reached.\n"); return;}
+    char name[MAX_NAME];
+    printf("Enter Candidate Name: ");
+    fgets(name,sizeof(name),stdin); name[strcspn(name,"\n")]=0;
+    candidates[candidateCount].id=candidateCount+1;
+    strcpy(candidates[candidateCount].name,name);
+    candidates[candidateCount].votes=0;
+    candidates[candidateCount].eliminated=0;
+    candidateCount++;
+    printf("Candidate added with ID %d\n",candidateCount);
+}
+
+void displayCandidates(){
+    if(candidateCount==0){ printf("No candidates.\n"); return;}
+    printf("\n--- Candidates ---\n");
+    for(int i=0;i<candidateCount;i++){
+        if(!candidates[i].eliminated)
+            printf("ID:%d | Name:%s | Votes:%d\n",candidates[i].id,candidates[i].name,candidates[i].votes);
+    }
+}
+
+// --- Voter Functions ---
+void addVoter(){
+    if(voterCount>=MAX_VOTERS){ printf("Max voters reached.\n"); return;}
+    int id;
+    printf("Enter Voter ID: "); scanf("%d",&id); clearInputBuffer();
+    voters[voterCount].voterId=id;
+    for(int i=0;i<MAX_CANDIDATES;i++) voters[voterCount].ranks[i]=0;
+    voterCount++;
+    printf("Voter added with ID %d\n",id);
+}
+
+// --- Ranked Choice Voting ---
+void castRankedVotes(){
+    if(voterCount==0 || candidateCount==0){ printf("No voters or candidates.\n"); return;}
+    for(int v=0;v<voterCount;v++){
+        printf("\nVoter ID %d, rank your candidates:\n",voters[v].voterId);
+        for(int r=0;r<candidateCount;r++){
+            int cid;
+            displayCandidates();
+            printf("Rank %d (enter Candidate ID): ",r+1);
+            scanf("%d",&cid); clearInputBuffer();
+            voters[v].ranks[r]=cid;
+        }
+    }
+    printf("All votes recorded.\n");
+}
+
+void rankedChoiceVoting(){
+    // Reset votes
+    for(int i=0;i<candidateCount;i++){ candidates[i].votes=0; candidates[i].eliminated=0; }
+    
+    int totalVoters=voterCount;
+    int round=1;
+    while(1){
+        // Count votes for non-eliminated candidates
+        for(int v=0;v<voterCount;v++){
+            for(int r=0;r<candidateCount;r++){
+                int cid=voters[v].ranks[r];
+                if(cid<=0) continue;
+                if(!candidates[cid-1].eliminated){
+                    candidates[cid-1].votes++;
+                    break;
+                }
+            }
+        }
+        printf("\n--- Round %d Results ---\n",round);
+        for(int i=0;i<candidateCount;i++){
+            if(!candidates[i].eliminated)
+                printf("Candidate %s | Votes:%d\n",candidates[i].name,candidates[i].votes);
+        }
+        // Check if anyone has >50%
+        int winnerIndex=-1;
+        for(int i=0;i<candidateCount;i++){
+            if(!candidates[i].eliminated && candidates[i].votes>totalVoters/2){
+                winnerIndex=i; break;
+            }
+        }
+        if(winnerIndex!=-1){
+            printf("\nWinner: %s with %d votes!\n",candidates[winnerIndex].name,candidates[winnerIndex].votes);
+            break;
+        }
+        // Eliminate candidate with fewest votes
+        int minVotes=totalVoters+1;
+        for(int i=0;i<candidateCount;i++){
+            if(!candidates[i].eliminated && candidates[i].votes<minVotes) minVotes=candidates[i].votes;
+        }
+        for(int i=0;i<candidateCount;i++){
+            if(!candidates[i].eliminated && candidates[i].votes==minVotes) candidates[i].eliminated=1;
+        }
+        // Reset votes for next round
+        for(int i=0;i<candidateCount;i++) candidates[i].votes=0;
+        round++;
+    }
+}
+
+// --- File Functions ---
+void saveCandidates(){
+    FILE* fp=fopen(CANDIDATE_FILE,"wb");
+    if(!fp){ printf("Error opening candidate file.\n"); return;}
+    fwrite(candidates,sizeof(Candidate),candidateCount,fp);
+    fclose(fp);
+}
+
+void loadCandidates(){
+    FILE* fp=fopen(CANDIDATE_FILE,"rb");
+    if(!fp) return;
+    candidateCount=fread(candidates,sizeof(Candidate),MAX_CANDIDATES,fp);
+    fclose(fp);
+}
+
+void saveVoters(){
+    FILE* fp=fopen(VOTER_FILE,"wb");
+    if(!fp){ printf("Error opening voter file.\n"); return;}
+    fwrite(voters,sizeof(Voter),voterCount,fp);
+    fclose(fp);
+}
+
+void loadVoters(){
+    FILE* fp=fopen(VOTER_FILE,"rb");
+    if(!fp) return;
+    voterCount=fread(voters,sizeof(Voter),MAX_VOTERS,fp);
+    fclose(fp);
+}

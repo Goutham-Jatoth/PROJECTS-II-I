@@ -1,0 +1,164 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_USERS 50
+#define NAME_LEN 30
+
+// ---------- Structures ----------
+typedef struct User {
+    int id;
+    char name[NAME_LEN];
+} User;
+
+User users[MAX_USERS];
+int adj[MAX_USERS][MAX_USERS]; // adjacency matrix
+int userCount = 0;
+
+// ---------- User Management ----------
+void addUser(char *name) {
+    if (userCount >= MAX_USERS) {
+        printf("⚠️ Cannot add more users!\n");
+        return;
+    }
+    users[userCount].id = userCount;
+    strcpy(users[userCount].name, name);
+    printf("✅ User added: %s (ID %d)\n", name, userCount);
+    userCount++;
+}
+
+void displayUsers() {
+    printf("\n👥 Registered Users:\n");
+    for (int i = 0; i < userCount; i++) {
+        printf("ID %d: %s\n", users[i].id, users[i].name);
+    }
+}
+
+// ---------- Friendship Management ----------
+void addFriendship(int id1, int id2) {
+    if (id1 < 0 || id1 >= userCount || id2 < 0 || id2 >= userCount) {
+        printf("⚠️ Invalid User IDs!\n");
+        return;
+    }
+    if (id1 == id2) {
+        printf("⚠️ Cannot friend yourself!\n");
+        return;
+    }
+    adj[id1][id2] = adj[id2][id1] = 1;
+    printf("🤝 %s and %s are now friends!\n", users[id1].name, users[id2].name);
+}
+
+void showFriends(int id) {
+    if (id < 0 || id >= userCount) {
+        printf("⚠️ Invalid User ID!\n");
+        return;
+    }
+    printf("\n👤 %s's Friends:\n", users[id].name);
+    int found = 0;
+    for (int i = 0; i < userCount; i++) {
+        if (adj[id][i]) {
+            printf(" - %s\n", users[i].name);
+            found = 1;
+        }
+    }
+    if (!found) printf("No friends yet.\n");
+}
+
+// ---------- Friend Recommendation ----------
+void recommendFriends(int id) {
+    if (id < 0 || id >= userCount) {
+        printf("⚠️ Invalid User ID!\n");
+        return;
+    }
+    printf("\n✨ Friend Recommendations for %s:\n", users[id].name);
+    int recommended[MAX_USERS] = {0};
+    for (int friend = 0; friend < userCount; friend++) {
+        if (adj[id][friend]) { // Direct friend
+            for (int fof = 0; fof < userCount; fof++) {
+                if (adj[friend][fof] && fof != id && !adj[id][fof]) {
+                    if (!recommended[fof]) {
+                        printf(" - %s (Friend of %s)\n", users[fof].name, users[friend].name);
+                        recommended[fof] = 1;
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- Mutual Friends ----------
+void mutualFriends(int id1, int id2) {
+    if (id1 < 0 || id1 >= userCount || id2 < 0 || id2 >= userCount) {
+        printf("⚠️ Invalid User IDs!\n");
+        return;
+    }
+    printf("\n🔗 Mutual Friends between %s and %s:\n", users[id1].name, users[id2].name);
+    int found = 0;
+    for (int i = 0; i < userCount; i++) {
+        if (adj[id1][i] && adj[id2][i]) {
+            printf(" - %s\n", users[i].name);
+            found = 1;
+        }
+    }
+    if (!found) printf("No mutual friends.\n");
+}
+
+// ---------- Main Menu ----------
+int main() {
+    int choice, id1, id2;
+    char name[NAME_LEN];
+
+    while (1) {
+        printf("\n=== SOCIAL MEDIA FRIEND RECOMMENDATION ===\n");
+        printf("1. Add User\n");
+        printf("2. Display Users\n");
+        printf("3. Add Friendship\n");
+        printf("4. Show Friends\n");
+        printf("5. Recommend Friends\n");
+        printf("6. Show Mutual Friends\n");
+        printf("7. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+        case 1:
+            printf("Enter name: ");
+            scanf("%s", name);
+            addUser(name);
+            break;
+        case 2:
+            displayUsers();
+            break;
+        case 3:
+            displayUsers();
+            printf("Enter two user IDs to connect: ");
+            scanf("%d %d", &id1, &id2);
+            addFriendship(id1, id2);
+            break;
+        case 4:
+            displayUsers();
+            printf("Enter User ID: ");
+            scanf("%d", &id1);
+            showFriends(id1);
+            break;
+        case 5:
+            displayUsers();
+            printf("Enter User ID: ");
+            scanf("%d", &id1);
+            recommendFriends(id1);
+            break;
+        case 6:
+            displayUsers();
+            printf("Enter two User IDs: ");
+            scanf("%d %d", &id1, &id2);
+            mutualFriends(id1, id2);
+            break;
+        case 7:
+            printf("👋 Exiting Social Media System...\n");
+            exit(0);
+        default:
+            printf("⚠️ Invalid choice!\n");
+        }
+    }
+    return 0;
+}

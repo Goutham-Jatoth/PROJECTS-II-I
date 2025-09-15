@@ -1,0 +1,246 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <limits.h>
+
+#define MAX_NAME 50
+#define MAX_ORDERS 100
+#define MAX_LOC 6
+
+// ------------------ Structures ------------------
+typedef struct MenuItem {
+    int id;
+    char name[MAX_NAME];
+    float price;
+    struct MenuItem* next;
+} MenuItem;
+
+typedef struct Restaurant {
+    int id;
+    char name[MAX_NAME];
+    float rating;
+    MenuItem* menu;
+    struct Restaurant* next;
+} Restaurant;
+
+typedef struct Order {
+    int orderId;
+    char customerName[MAX_NAME];
+    char restaurantName[MAX_NAME];
+    char itemName[MAX_NAME];
+    int qty;
+    float total;
+    int loyaltyPoints;
+    struct Order* next;
+} Order;
+
+// ------------------ Globals ------------------
+Restaurant* restaurants = NULL;
+Order* orderHistory = NULL;
+int orderCounter = 1;
+
+// Graph for delivery (locations)
+int graph[MAX_LOC][MAX_LOC] = {
+    {0, 10, 0, 30, 100, 0},
+    {10, 0, 50, 0, 0, 0},
+    {0, 50, 0, 20, 10, 0},
+    {30, 0, 20, 0, 60, 0},
+    {100, 0, 10, 60, 0, 0},
+    {0, 0, 0, 0, 0, 0}
+};
+
+// ------------------ Restaurant & Menu ------------------
+Restaurant* createRestaurant(int id, char* name, float rating) {
+    Restaurant* r = (Restaurant*)malloc(sizeof(Restaurant));
+    r->id = id;
+    strcpy(r->name, name);
+    r->rating = rating;
+    r->menu = NULL;
+    r->next = NULL;
+    return r;
+}
+
+void addRestaurant(Restaurant* r) {
+    if (restaurants == NULL) restaurants = r;
+    else {
+        Restaurant* temp = restaurants;
+        while(temp->next) temp = temp->next;
+        temp->next = r;
+    }
+}
+
+void addMenuItem(Restaurant* r, int id, char* name, float price) {
+    MenuItem* m = (MenuItem*)malloc(sizeof(MenuItem));
+    m->id = id;
+    strcpy(m->name, name);
+    m->price = price;
+    m->next = NULL;
+
+    if(r->menu == NULL) r->menu = m;
+    else {
+        MenuItem* temp = r->menu;
+        while(temp->next) temp = temp->next;
+        temp->next = m;
+    }
+}
+
+void displayRestaurants() {
+    printf("\n===== Restaurants =====\n");
+    Restaurant* r = restaurants;
+    while(r) {
+        printf("%d. %s (⭐ %.1f)\n", r->id, r->name, r->rating);
+        r = r->next;
+    }
+}
+
+void displayMenu(Restaurant* r) {
+    printf("\n--- Menu at %s ---\n", r->name);
+    MenuItem* m = r->menu;
+    while(m) {
+        printf("%d. %s - ₹%.2f\n", m->id, m->name, m->price);
+        m = m->next;
+    }
+}
+
+// ------------------ Orders ------------------
+void addOrder(char* customer, Restaurant* r, MenuItem* m, int qty) {
+    Order* o = (Order*)malloc(sizeof(Order));
+    o->orderId = orderCounter++;
+    strcpy(o->customerName, customer);
+    strcpy(o->restaurantName, r->name);
+    strcpy(o->itemName, m->name);
+    o->qty = qty;
+    o->total = m->price * qty;
+    o->loyaltyPoints = (int)(o->total / 100);
+    o->next = NULL;
+
+    if(orderHistory == NULL) orderHistory = o;
+    else {
+        Order* temp = orderHistory;
+        while(temp->next) temp = temp->next;
+        temp->next = o;
+    }
+
+    printf("\n✅ Order Placed! Order ID: %d\n", o->orderId);
+    printf("   %s ordered %d x %s from %s | Total: ₹%.2f | Loyalty Points: %d\n",
+           o->customerName, o->qty, o->itemName, o->restaurantName,
+           o->total, o->loyaltyPoints);
+}
+
+void searchOrdersByCustomer(char* name) {
+    Order* o = orderHistory;
+    int found = 0;
+    printf("\n📜 Order History for %s:\n", name);
+    while(o) {
+        if(strcmp(o->customerName, name) == 0) {
+            printf("OrderID %d | %s | %s x%d | ₹%.2f | Points: %d\n",
+                   o->orderId, o->restaurantName, o->itemName, o->qty, o->total, o->loyaltyPoints);
+            found = 1;
+        }
+        o = o->next;
+    }
+    if(!found) printf("No orders found for %s.\n", name);
+}
+
+// ------------------ Delivery (Dijkstra) ------------------
+void dijkstra(int src) {
+    int dist[MAX_LOC], visited[MAX_LOC];
+    for(int i=0;i<MAX_LOC;i++) {
+        dist[i] = INT_MAX;
+        visited[i] = 0;
+    }
+    dist[src] = 0;
+
+    for(int count=0;count<MAX_LOC-1;count++) {
+        int u=-1;
+        for(int i=0;i<MAX_LOC;i++)
+            if(!visited[i] && (u==-1 || dist[i]<dist[u]))
+                u=i;
+
+        visited[u]=1;
+        for(int v=0;v<MAX_LOC;v++){
+            if(graph[u][v] && dist[u]!=INT_MAX && dist[u]+graph[u][v]<dist[v]){
+                dist[v]=dist[u]+graph[u][v];
+            }
+        }
+    }
+
+    printf("\n📍 Delivery Times from Location %d:\n", src);
+    for(int i=0;i<MAX_LOC;i++){
+        printf("To Location %d : %d mins\n", i, dist[i]);
+    }
+}
+
+// ------------------ Main ------------------
+int main() {
+    // Add restaurants
+    Restaurant* r1 = createRestaurant(1,"Dominos",4.3);
+    addMenuItem(r1,1,"Pizza",199.99);
+    addMenuItem(r1,2,"Garlic Bread",99.50);
+    addRestaurant(r1);
+
+    Restaurant* r2 = createRestaurant(2,"KFC",4.0);
+    addMenuItem(r2,1,"Zinger Burger",149.99);
+    addMenuItem(r2,2,"Popcorn Chicken",129.50);
+    addRestaurant(r2);
+
+    Restaurant* r3 = createRestaurant(3,"Starbucks",4.5);
+    addMenuItem(r3,1,"Cappuccino",129.99);
+    addMenuItem(r3,2,"Cold Coffee",159.50);
+    addRestaurant(r3);
+
+    int choice, rId, itemId, qty, loc;
+    char name[MAX_NAME];
+
+    while(1){
+        printf("\n=== ONLINE FOOD ORDERING SYSTEM ===\n");
+        printf("1. View Restaurants\n");
+        printf("2. Place Order\n");
+        printf("3. Search Orders by Customer\n");
+        printf("4. Show Delivery Routes\n");
+        printf("5. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d",&choice);
+
+        switch(choice){
+            case 1:
+                displayRestaurants();
+                break;
+            case 2:
+                printf("Enter your name: ");
+                scanf("%s",name);
+                displayRestaurants();
+                printf("Choose Restaurant ID: ");
+                scanf("%d",&rId);
+                Restaurant* r = restaurants;
+                while(r && r->id != rId) r = r->next;
+                if(!r) { printf("Invalid Restaurant!\n"); break; }
+                displayMenu(r);
+                printf("Enter Item ID: ");
+                scanf("%d",&itemId);
+                printf("Quantity: ");
+                scanf("%d",&qty);
+                MenuItem* m = r->menu;
+                while(m && m->id != itemId) m = m->next;
+                if(!m) { printf("Invalid Item!\n"); break; }
+                addOrder(name,r,m,qty);
+                break;
+            case 3:
+                printf("Enter customer name: ");
+                scanf("%s",name);
+                searchOrdersByCustomer(name);
+                break;
+            case 4:
+                printf("Enter source location (0=Restaurant): ");
+                scanf("%d",&loc);
+                dijkstra(loc);
+                break;
+            case 5:
+                printf("Exiting... Thanks for using Food Ordering System!\n");
+                exit(0);
+            default:
+                printf("Invalid choice!\n");
+        }
+    }
+    return 0;
+}

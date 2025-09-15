@@ -1,0 +1,283 @@
+import org.opencv.core.*;
+import org.opencv.face.*;
+import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.objdetect.CascadeClassifier;
+import org.opencv.videoio.VideoCapture;
+import org.opencv.imgproc.Imgproc;
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.image.BufferedImage;
+import java.io.*;
+import java.text.SimpleDateFormat;
+import java.util.*;
+
+public class FaceAttendanceSystem {
+    static {
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+    }
+
+    private CascadeClassifier faceDetector;
+    private FaceRecognizer recognizer;
+    private Map<Integer, String> studentMap;
+    private String attendanceFile = "attendance.csv";
+
+    public FaceAttendanceSystem() {
+        faceDetector = new CascadeClassifier("haarcascade_frontalface_alt.xml");
+        recognizer = LBPHFaceRecognizer.create();
+        studentMap = new HashMap<>();
+
+        // Load training data if available
+        File modelFile = new File("trainer.yml");
+        if (modelFile.exists()) {
+            recognizer.read("trainer.yml");
+            loadStudents();
+        }
+    }
+
+    // Capture images for new student
+    public void registerStudent(String name, int id) throws IOException {
+        VideoCapture camera = new VideoCapture(0);
+        if (!camera.isOpened()) {
+            System.out.println("Error: Camera not detected!");
+            return;
+        }
+
+        int sampleCount = 0;
+        File dir = new File("dataset");
+        if (!dir.exists()) dir.mkdir();
+
+        while (sampleCount < 20) { // Capture 20 images
+            Mat frame = new Mat();
+            if (!camera.read(frame)) continue;
+
+            MatOfRect faces = new MatOfRect();
+            faceDetector.detectMultiScale(frame, faces);
+
+            for (Rect rect : faces.toArray()) {
+                Imgproc.rectangle(frame, rect, new Scalar(255, 0, 0), 2);
+                Mat face = new Mat(frame, rect);
+                Imgcodecs.imwrite("dataset/" + name + "." + id + "." + sampleCount + ".png", face);
+                sampleCount++;
+            }
+
+            showFrame("Registering " + name, frame);
+        }
+
+        camera.release();
+        JOptionPane.showMessageDialog(null, "Registration complete for " + name);
+        studentMap.put(id, name);
+        saveStudents();
+    }
+
+    // Train model with dataset images
+    public void trainModel() {
+        File datasetDir = new File("dataset");
+        File[] files = datasetDir.listFiles();
+        if (files == null) return;
+
+        List<Mat> images = new ArrayList<>();
+        List<Integer> labels = new ArrayList<>();
+
+        for (File file : files) {
+            String[] parts = file.getName().split("\\.");
+            if (parts.length < 3) continue;
+            int label = Integer.parseInt(parts[1]);
+            Mat img = Imgcodecs.imread(file.getAbsolutePath(), Imgcodecs.IMREAD_GRAYSCALE);
+            images.add(img);
+            labels.add(label);
+        }
+
+        MatOfInt labelsMat = new MatOfInt();
+        labelsMat.fromList(labels);
+        recognizer.train(images, labelsMat);
+        recognizer.save("trainer.yml");
+        JOptionPane.showMessageDialog(null, "Training complete!");
+    }
+
+    // Recognize faces and mark attendance
+    public void startRecognition() throws IOException {
+        VideoCapture camera = new VideoCapture(0);
+        if (!camera.isOpened()) {
+            System.out.println("Error: Camera not detected!");
+            return;
+        }
+
+        Set<Integer> markedToday = new HashSet<>();
+        while (true) {
+            Mat frame = new Mat();
+            if (!camera.read(frame)) continue;
+
+            Mat gray = new Mat();
+            Imgproc.cvtColor(frame, gray, Imgproc.COLOR_BGR2GRAY);
+
+            MatOfRect faces = new MatOfRect();
+            faceDetector.detectMultiScale(gray, faces);
+
+            for (Rect rect : faces.toArray()) {
+                Mat face = new Mat(gray, rect);
+                int[] label = new int[1];
+                double[] confidence = new double[1];
+                recognizer.predict(face, label, confidence);
+
+                String name;
+                if (studentMap.containsKey(label[0]) && confidence[0] < 80) {
+                    name = studentMap.get(label[0]);
+                    Imgproc.putText(frame, name, new Point(rect.x, rect.y - 5),
+                            Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(0, 255, 0), 2);
+
+                    if (!markedToday.contains(label[0])) {
+                        markAttendance(name);
+                        markedToday.add(label[0]);
+                    }
+                } else {
+                    name = "Unknown";
+                    Imgproc.putText(frame, name, new Point(rect.x, rect.y - 5),
+                            Imgproc.FONT_HERSHEY_SIMPLEX, 1, new Scalar(0, 0, 255), 2);
+                }
+
+                Imgproc.rectangle(frame, rect, new Scalar(255, 0, 0), 2);
+            }
+
+            showFrame("Face Recognition", frame);
+        }
+    }
+
+    private void markAttendance(String name) throws IOException {
+        FileWriter fw = new FileWriter(attendanceFile, true);
+        BufferedWriter bw = new BufferedWriter(fw);
+        PrintWriter out = new PrintWriter(bw);
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+        out.println(name + "," + timestamp);
+        out.close();
+        JOptionPane.showMessageDialog(null, "Attendance marked for " + name);
+    }
+
+    private void saveStudents() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream("students.ser"))) {
+            oos.writeObject(studentMap);
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private void loadStudents() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream("students.ser"))) {
+            studentMap = (Map<Integer, String>) ois.readObject();
+        } catch (Exception e) {
+            studentMap = new HashMap<>();
+        }
+    }
+
+    private void showFrame(String title, Mat img) {
+        MatOfByte mob = new MatOfByte();
+        Imgcodecs.imencode(".jpg", img, mob);
+        ImageIcon icon = new ImageIcon(mob.toArray());
+        JFrame frame = new JFrame(title);
+        frame.setLayout(new FlowLayout());
+        frame.setSize(600, 600);
+        JLabel lbl = new JLabel();
+        lbl.setIcon(icon);
+        frame.add(lbl);
+        frame.setVisible(true);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
+
+    public static void main(String[] args) throws Exception {
+        FaceAttendanceSystem system = new FaceAttendanceSystem();
+
+        String[] options = {"Register Student", "Train Model", "Start Attendance"};
+        int choice = JOptionPane.showOptionDialog(null, "Choose Option", "Face Attendance",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+        if (choice == 0) {
+            String name = JOptionPane.showInputDialog("Enter Student Name:");
+            int id = Integer.parseInt(JOptionPane.showInputDialog("Enter Student ID (numeric):"));
+            system.registerStudent(name, id);
+        } else if (choice == 1) {
+            system.trainModel();
+        } else if (choice == 2) {
+            system.startRecognition();
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+⚙️ How This Works
+
+Register Student → Captures 20 face images & saves them in dataset/.
+
+Train Model → Trains LBPH recognizer with those images → saves trainer.yml.
+
+Start Attendance → Detects faces → recognizes student → marks attendance in attendance.csv.
+
+📦 Required Files
+
+haarcascade_frontalface_alt.xml → from OpenCV’s data/haarcascades/.
+
+opencv-4.x.jar → add to classpath.
+
+Native OpenCV .dll/.so → add to library path.
+
+👉 This is a powerful project that covers AI, Computer Vision, Java integration, and file handling.
+
+Do you want me to also prepare a step-by-step setup guide with folder structure and commands so you won’t face errors while running?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Excellent choice 🚀 — a Face Recognition Attendance System will make your resume stand out since it involves AI, Computer Vision, and Java integration.
+
+We’ll build a Java + OpenCV project where:
+
+Students are registered with their face images.
+
+The system uses HaarCascade (OpenCV) for face detection.
+
+Uses LBPH (Local Binary Pattern Histogram) for face recognition.
+
+When a face is recognized, attendance is marked automatically.
+
+Attendance logs are saved in a CSV file.
+
+✅ Full Java Code – Face Recognition Attendance System
+
+⚠️ Requirements before running:
+
+Install OpenCV for Java (4.x).
+
+Add opencv-***.jar to classpath.
+
+Keep haarcascade_frontalface_alt.xml in your project folder (OpenCV provides it).

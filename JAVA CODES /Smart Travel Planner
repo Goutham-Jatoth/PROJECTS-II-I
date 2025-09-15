@@ -1,0 +1,260 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+import java.io.*;
+import java.net.*;
+import org.json.JSONObject;
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.PdfWriter;
+
+public class SmartTravelPlanner extends JFrame {
+
+    private JTextField nameField, sourceField, destField, budgetField, daysField;
+    private JComboBox<String> seatBox;
+    private JTextArea output;
+    private JButton planBtn, bookBtn, mapBtn;
+
+    private ArrayList<String> availableSeats = new ArrayList<>(
+        Arrays.asList("1A","1B","1C","2A","2B","2C","3A","3B","3C")
+    );
+
+    // Replace with your free OpenWeatherMap API Key
+    private final String WEATHER_API_KEY = "YOUR_OPENWEATHERMAP_API_KEY";
+
+    public SmartTravelPlanner() {
+        setTitle("🌍 Smart Travel Planner");
+        setSize(750, 650);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        JPanel inputPanel = new JPanel(new GridLayout(7, 2, 10, 10));
+
+        inputPanel.add(new JLabel("👤 Name:"));
+        nameField = new JTextField();
+        inputPanel.add(nameField);
+
+        inputPanel.add(new JLabel("🛫 Source City:"));
+        sourceField = new JTextField();
+        inputPanel.add(sourceField);
+
+        inputPanel.add(new JLabel("🛬 Destination City:"));
+        destField = new JTextField();
+        inputPanel.add(destField);
+
+        inputPanel.add(new JLabel("💰 Budget (INR):"));
+        budgetField = new JTextField();
+        inputPanel.add(budgetField);
+
+        inputPanel.add(new JLabel("📅 Days of Stay:"));
+        daysField = new JTextField();
+        inputPanel.add(daysField);
+
+        inputPanel.add(new JLabel("✈️ Select Flight Seat:"));
+        seatBox = new JComboBox<>(availableSeats.toArray(new String[0]));
+        inputPanel.add(seatBox);
+
+        planBtn = new JButton("🗺 Plan Trip");
+        bookBtn = new JButton("🎟 Book Flight");
+        mapBtn = new JButton("📍 Show Map");
+        inputPanel.add(planBtn);
+        inputPanel.add(bookBtn);
+
+        output = new JTextArea();
+        output.setEditable(false);
+        output.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+
+        add(inputPanel, BorderLayout.NORTH);
+        add(new JScrollPane(output), BorderLayout.CENTER);
+        add(mapBtn, BorderLayout.SOUTH);
+
+        // Trip planning
+        planBtn.addActionListener(e -> planTrip());
+
+        // Flight booking
+        bookBtn.addActionListener(e -> bookFlight());
+
+        // Google Maps
+        mapBtn.addActionListener(e -> openGoogleMaps());
+    }
+
+    // ✅ Live Weather API (OpenWeatherMap)
+    private String getWeather(String city) {
+        try {
+            String urlString = "https://api.openweathermap.org/data/2.5/weather?q=" 
+                                + URLEncoder.encode(city, "UTF-8") 
+                                + "&appid=" + WEATHER_API_KEY + "&units=metric";
+            URL url = new URL(urlString);
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("GET");
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            StringBuilder json = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) json.append(line);
+            reader.close();
+
+            JSONObject obj = new JSONObject(json.toString());
+            String condition = obj.getJSONArray("weather").getJSONObject(0).getString("main");
+            double temp = obj.getJSONObject("main").getDouble("temp");
+
+            return condition + ", " + temp + "°C";
+
+        } catch (Exception e) {
+            return "⚠️ Weather API Error: " + e.getMessage();
+        }
+    }
+
+    // Dummy Hotel Suggestions
+    private String[] getHotels(String city) {
+        return new String[] {
+            "🏨 " + city + " Palace Hotel",
+            "🏨 " + city + " Grand Inn",
+            "🏨 " + city + " Budget Stay"
+        };
+    }
+
+    // ✅ Plan Trip
+    private void planTrip() {
+        String name = nameField.getText().trim();
+        String src = sourceField.getText().trim();
+        String dest = destField.getText().trim();
+        String budget = budgetField.getText().trim();
+        String days = daysField.getText().trim();
+
+        if(name.isEmpty() || src.isEmpty() || dest.isEmpty() || budget.isEmpty() || days.isEmpty()) {
+            output.setText("⚠️ Please fill all fields!");
+            return;
+        }
+
+        String weather = getWeather(dest);
+        String[] hotels = getHotels(dest);
+
+        output.setText("🌍 Travel Plan for " + name + "\n");
+        output.append("From: " + src + " → To: " + dest + "\n");
+        output.append("Budget: ₹" + budget + " | Stay: " + days + " days\n\n");
+
+        output.append("🌤 Weather in " + dest + ": " + weather + "\n\n");
+
+        output.append("🏨 Suggested Hotels:\n");
+        for(String h : hotels) output.append("  - " + h + "\n");
+
+        output.append("\n✅ Trip planned successfully!\n");
+    }
+
+    // ✅ Flight booking
+    private void bookFlight() {
+        String name = nameField.getText().trim();
+        String src = sourceField.getText().trim();
+        String dest = destField.getText().trim();
+        String seat = (String) seatBox.getSelectedItem();
+
+        if(name.isEmpty() || src.isEmpty() || dest.isEmpty()) {
+            output.setText("⚠️ Enter Name, Source, and Destination first!");
+            return;
+        }
+
+        String ticketDetails = "🎟 Flight Ticket Generated!\n\n"
+                + "Passenger: " + name + "\n"
+                + "From: " + src + "\n"
+                + "To: " + dest + "\n"
+                + "Seat: " + seat + "\n"
+                + "Status: ✅ Confirmed";
+
+        output.setText(ticketDetails);
+
+        availableSeats.remove(seat);
+        seatBox.removeItem(seat);
+
+        generatePDF(name, src, dest, seat);
+    }
+
+    // ✅ PDF Ticket
+    private void generatePDF(String name, String src, String dest, String seat) {
+        try {
+            Document document = new Document();
+            String fileName = "FlightTicket_" + name + ".pdf";
+            PdfWriter.getInstance(document, new FileOutputStream(fileName));
+
+            document.open();
+            document.add(new Paragraph("✈️ SMART TRAVEL PLANNER - FLIGHT TICKET"));
+            document.add(new Paragraph("---------------------------------------------------"));
+            document.add(new Paragraph("Passenger Name: " + name));
+            document.add(new Paragraph("Source: " + src));
+            document.add(new Paragraph("Destination: " + dest));
+            document.add(new Paragraph("Seat: " + seat));
+            document.add(new Paragraph("Status: CONFIRMED ✅"));
+            document.add(new Paragraph("---------------------------------------------------"));
+            document.add(new Paragraph("Generated on: " + new Date()));
+            document.close();
+
+            output.append("\n\n📄 Ticket saved as: " + fileName);
+        } catch (Exception e) {
+            output.append("\n⚠️ PDF Generation Error: " + e.getMessage());
+        }
+    }
+
+    // ✅ Google Maps Route
+    private void openGoogleMaps() {
+        try {
+            String src = sourceField.getText().trim();
+            String dest = destField.getText().trim();
+            if(src.isEmpty() || dest.isEmpty()) {
+                output.setText("⚠️ Enter Source and Destination first!");
+                return;
+            }
+            String url = "https://www.google.com/maps/dir/" 
+                        + URLEncoder.encode(src, "UTF-8") 
+                        + "/" + URLEncoder.encode(dest, "UTF-8");
+            Desktop.getDesktop().browse(new URI(url));
+        } catch (Exception e) {
+            output.append("\n⚠️ Google Maps Error: " + e.getMessage());
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SmartTravelPlanner().setVisible(true));
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+📌 Project Structure
+SmartTravelPlanner/
+ ├── src/
+ │    └── SmartTravelPlanner.java   # Main GUI App
+ ├── lib/
+ │    ├── itextpdf-5.5.13.2.jar     # PDF generation
+ │    ├── json-20231018.jar         # JSON parsing
+ └── README.md

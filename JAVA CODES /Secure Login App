@@ -1,0 +1,156 @@
+import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import java.awt.*;
+import java.util.*;
+import java.util.HashMap;
+
+public class SecureLoginApp extends JFrame {
+    private JTextField usernameField;
+    private JPasswordField passwordField;
+    private JButton loginButton, signupButton;
+    private JLabel statusLabel;
+
+    private JProgressBar strengthBar;
+    private JLabel strengthLabel;
+
+    // Simple in-memory database (username → password)
+    private Map<String, String> users = new HashMap<>();
+
+    public SecureLoginApp() {
+        super("🔐 Secure Login App");
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setSize(500, 350);
+        setLocationRelativeTo(null);
+        setLayout(new BorderLayout(10, 10));
+
+        // --- Input Panel ---
+        JPanel inputPanel = new JPanel(new GridLayout(3, 2, 10, 10));
+        inputPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 10, 20));
+
+        inputPanel.add(new JLabel("Username:"));
+        usernameField = new JTextField();
+        inputPanel.add(usernameField);
+
+        inputPanel.add(new JLabel("Password:"));
+        passwordField = new JPasswordField();
+        inputPanel.add(passwordField);
+
+        // Strength meter
+        strengthLabel = new JLabel("Strength: ");
+        strengthBar = new JProgressBar(0, 100);
+        strengthBar.setStringPainted(true);
+        inputPanel.add(strengthLabel);
+        inputPanel.add(strengthBar);
+
+        add(inputPanel, BorderLayout.CENTER);
+
+        // --- Buttons ---
+        JPanel buttonPanel = new JPanel(new FlowLayout());
+        loginButton = new JButton("Login");
+        signupButton = new JButton("Sign Up");
+        buttonPanel.add(loginButton);
+        buttonPanel.add(signupButton);
+        add(buttonPanel, BorderLayout.SOUTH);
+
+        // --- Status ---
+        statusLabel = new JLabel(" ");
+        statusLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        add(statusLabel, BorderLayout.NORTH);
+
+        // Live password strength check
+        passwordField.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { updateStrength(); }
+            public void removeUpdate(DocumentEvent e) { updateStrength(); }
+            public void changedUpdate(DocumentEvent e) { updateStrength(); }
+        });
+
+        // Login action
+        loginButton.addActionListener(e -> loginUser());
+
+        // Signup action
+        signupButton.addActionListener(e -> signupUser());
+
+        setVisible(true);
+    }
+
+    // Update strength bar
+    private void updateStrength() {
+        String pwd = new String(passwordField.getPassword());
+        int score = getPasswordScore(pwd);
+        strengthBar.setValue(score);
+        if (score < 25) { strengthLabel.setText("Strength: Very Weak"); strengthBar.setForeground(Color.RED); }
+        else if (score < 50) { strengthLabel.setText("Strength: Weak"); strengthBar.setForeground(Color.ORANGE); }
+        else if (score < 70) { strengthLabel.setText("Strength: Moderate"); strengthBar.setForeground(Color.YELLOW); }
+        else if (score < 90) { strengthLabel.setText("Strength: Strong"); strengthBar.setForeground(Color.GREEN); }
+        else { strengthLabel.setText("Strength: Very Strong"); strengthBar.setForeground(Color.BLUE); }
+    }
+
+    // Password scoring logic
+    private int getPasswordScore(String pwd) {
+        if (pwd.isEmpty()) return 0;
+
+        int len = pwd.length();
+        boolean hasLower = false, hasUpper = false, hasDigit = false, hasSymbol = false;
+        for (char c : pwd.toCharArray()) {
+            if (Character.isLowerCase(c)) hasLower = true;
+            else if (Character.isUpperCase(c)) hasUpper = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else hasSymbol = true;
+        }
+
+        int pool = 0;
+        if (hasLower) pool += 26;
+        if (hasUpper) pool += 26;
+        if (hasDigit) pool += 10;
+        if (hasSymbol) pool += 32;
+
+        double entropy = (pool > 0) ? Math.log(pool) / Math.log(2) * len : 0;
+        return (int)Math.min(100, entropy / 1.2);
+    }
+
+    // Signup logic
+    private void signupUser() {
+        String user = usernameField.getText().trim();
+        String pwd = new String(passwordField.getPassword());
+
+        if (user.isEmpty() || pwd.isEmpty()) {
+            statusLabel.setText("⚠️ Username and password required!");
+            return;
+        }
+
+        int score = getPasswordScore(pwd);
+        if (score < 50) {
+            statusLabel.setText("❌ Password too weak! Use stronger password.");
+            return;
+        }
+
+        if (users.containsKey(user)) {
+            statusLabel.setText("⚠️ Username already exists!");
+        } else {
+            users.put(user, pwd);
+            statusLabel.setText("✅ Signup successful! You can now login.");
+            usernameField.setText("");
+            passwordField.setText("");
+            strengthBar.setValue(0);
+            strengthLabel.setText("Strength: ");
+        }
+    }
+
+    // Login logic
+    private void loginUser() {
+        String user = usernameField.getText().trim();
+        String pwd = new String(passwordField.getPassword());
+
+        if (users.containsKey(user) && users.get(user).equals(pwd)) {
+            statusLabel.setText("🎉 Login successful! Welcome, " + user + "!");
+        } else {
+            statusLabel.setText("❌ Invalid username or password.");
+        }
+    }
+
+    public static void main(String[] args) {
+        try { UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName()); } catch (Exception ignored) {}
+        SwingUtilities.invokeLater(SecureLoginApp::new);
+    }
+}

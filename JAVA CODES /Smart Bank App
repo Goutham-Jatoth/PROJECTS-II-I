@@ -1,0 +1,367 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+import java.text.SimpleDateFormat;
+import java.io.*;
+
+// Bank Account Class
+class BankAccount {
+    String accountNumber;
+    String holderName;
+    String pin;
+    double balance;
+    ArrayList<String> history = new ArrayList<>();
+
+    public BankAccount(String accNo, String name, String pin, double bal) {
+        this.accountNumber = accNo;
+        this.holderName = name;
+        this.pin = pin;
+        this.balance = bal;
+        addHistory("Account created with balance: ₹" + bal);
+    }
+
+    boolean checkPin(String enteredPin) {
+        return this.pin.equals(enteredPin);
+    }
+
+    void deposit(double amount) {
+        balance += amount;
+        addHistory("Deposited: ₹" + amount + " | Balance: ₹" + balance);
+    }
+
+    boolean withdraw(double amount) {
+        if (amount <= balance) {
+            balance -= amount;
+            addHistory("Withdrawn: ₹" + amount + " | Balance: ₹" + balance);
+            return true;
+        }
+        return false;
+    }
+
+    boolean transfer(BankAccount to, double amount) {
+        if (withdraw(amount)) {
+            to.deposit(amount);
+            addHistory("Transferred: ₹" + amount + " to " + to.holderName);
+            return true;
+        }
+        return false;
+    }
+
+    void addHistory(String action) {
+        String time = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss").format(new Date());
+        history.add(time + " → " + action);
+    }
+
+    ArrayList<String> getHistory() {
+        return history;
+    }
+}
+
+// Main App
+public class SmartBankApp extends JFrame {
+
+    private JTextArea output;
+    private JTextField nameField, pinField, loginAccField, loginPinField,
+                      depositField, withdrawField, transferAccField, transferAmtField, loanField, fdField;
+    private JButton registerBtn, loginBtn, logoutBtn,
+                    depositBtn, withdrawBtn, transferBtn, historyBtn, loanBtn, fdBtn, saveBtn;
+    private JLabel balanceLabel, loginStatus;
+
+    private HashMap<String, BankAccount> accounts = new HashMap<>();
+    private BankAccount currentAcc;
+
+    public SmartBankApp() {
+        setTitle("🏦 Smart Bank Application");
+        setSize(900, 650);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        JPanel inputPanel = new JPanel(new GridLayout(12, 2, 10, 10));
+
+        // Registration
+        inputPanel.add(new JLabel("👤 Register Name:"));
+        nameField = new JTextField();
+        inputPanel.add(nameField);
+
+        inputPanel.add(new JLabel("🔑 Set PIN:"));
+        pinField = new JTextField();
+        inputPanel.add(pinField);
+
+        registerBtn = new JButton("➕ Register");
+        inputPanel.add(registerBtn);
+        inputPanel.add(new JLabel(""));
+
+        // Login
+        inputPanel.add(new JLabel("🔐 Login AccNo:"));
+        loginAccField = new JTextField();
+        inputPanel.add(loginAccField);
+
+        inputPanel.add(new JLabel("🔑 Enter PIN:"));
+        loginPinField = new JTextField();
+        inputPanel.add(loginPinField);
+
+        loginBtn = new JButton("Login");
+        logoutBtn = new JButton("Logout");
+        inputPanel.add(loginBtn);
+        inputPanel.add(logoutBtn);
+
+        loginStatus = new JLabel("Not Logged In");
+        loginStatus.setForeground(Color.RED);
+        inputPanel.add(loginStatus);
+        inputPanel.add(new JLabel(""));
+
+        balanceLabel = new JLabel("Balance: ₹0.0");
+        balanceLabel.setFont(new Font("Arial", Font.BOLD, 16));
+        inputPanel.add(balanceLabel);
+        inputPanel.add(new JLabel(""));
+
+        // Deposit
+        inputPanel.add(new JLabel("💰 Deposit Amount:"));
+        depositField = new JTextField();
+        inputPanel.add(depositField);
+        depositBtn = new JButton("Deposit");
+        inputPanel.add(depositBtn);
+        inputPanel.add(new JLabel(""));
+
+        // Withdraw
+        inputPanel.add(new JLabel("💸 Withdraw Amount:"));
+        withdrawField = new JTextField();
+        inputPanel.add(withdrawField);
+        withdrawBtn = new JButton("Withdraw");
+        inputPanel.add(withdrawBtn);
+        inputPanel.add(new JLabel(""));
+
+        // Transfer
+        inputPanel.add(new JLabel("🔄 Transfer To (AccNo):"));
+        transferAccField = new JTextField();
+        inputPanel.add(transferAccField);
+        inputPanel.add(new JLabel("Amount:"));
+        transferAmtField = new JTextField();
+        inputPanel.add(transferAmtField);
+        transferBtn = new JButton("Transfer");
+        inputPanel.add(transferBtn);
+        inputPanel.add(new JLabel(""));
+
+        // Loan
+        inputPanel.add(new JLabel("🏦 Loan Amount:"));
+        loanField = new JTextField();
+        inputPanel.add(loanField);
+        loanBtn = new JButton("Apply Loan");
+        inputPanel.add(loanBtn);
+        inputPanel.add(new JLabel(""));
+
+        // FD
+        inputPanel.add(new JLabel("📈 Fixed Deposit (₹):"));
+        fdField = new JTextField();
+        inputPanel.add(fdField);
+        fdBtn = new JButton("Start FD");
+        inputPanel.add(fdBtn);
+        inputPanel.add(new JLabel(""));
+
+        // Buttons
+        historyBtn = new JButton("📜 Transaction History");
+        saveBtn = new JButton("💾 Save Statement (.txt)");
+        inputPanel.add(historyBtn);
+        inputPanel.add(saveBtn);
+
+        output = new JTextArea();
+        output.setEditable(false);
+        output.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+
+        add(inputPanel, BorderLayout.NORTH);
+        add(new JScrollPane(output), BorderLayout.CENTER);
+
+        // Actions
+        registerBtn.addActionListener(e -> registerAccount());
+        loginBtn.addActionListener(e -> login());
+        logoutBtn.addActionListener(e -> logout());
+        depositBtn.addActionListener(e -> depositMoney());
+        withdrawBtn.addActionListener(e -> withdrawMoney());
+        transferBtn.addActionListener(e -> transferMoney());
+        historyBtn.addActionListener(e -> showHistory());
+        loanBtn.addActionListener(e -> applyLoan());
+        fdBtn.addActionListener(e -> startFD());
+        saveBtn.addActionListener(e -> saveStatement());
+
+        setButtonsEnabled(false);
+    }
+
+    private void setButtonsEnabled(boolean state) {
+        depositBtn.setEnabled(state);
+        withdrawBtn.setEnabled(state);
+        transferBtn.setEnabled(state);
+        loanBtn.setEnabled(state);
+        fdBtn.setEnabled(state);
+        historyBtn.setEnabled(state);
+        saveBtn.setEnabled(state);
+        logoutBtn.setEnabled(state);
+    }
+
+    private void registerAccount() {
+        String name = nameField.getText().trim();
+        String pin = pinField.getText().trim();
+        if (name.isEmpty() || pin.isEmpty()) {
+            output.setText("⚠️ Enter both name and PIN!");
+            return;
+        }
+        String accNo = "AC" + (1000 + accounts.size());
+        BankAccount newAcc = new BankAccount(accNo, name, pin, 0.0);
+        accounts.put(accNo, newAcc);
+        output.setText("✅ Account Registered!\nAccount No: " + accNo + "\nName: " + name);
+    }
+
+    private void login() {
+        String accNo = loginAccField.getText().trim();
+        String pin = loginPinField.getText().trim();
+        BankAccount acc = accounts.get(accNo);
+        if (acc != null && acc.checkPin(pin)) {
+            currentAcc = acc;
+            loginStatus.setText("✅ Logged in as " + acc.holderName);
+            loginStatus.setForeground(Color.GREEN);
+            balanceLabel.setText("Balance: ₹" + acc.balance);
+            output.setText("Welcome, " + acc.holderName + "!");
+            setButtonsEnabled(true);
+        } else {
+            output.setText("❌ Invalid credentials!");
+        }
+    }
+
+    private void logout() {
+        currentAcc = null;
+        loginStatus.setText("Not Logged In");
+        loginStatus.setForeground(Color.RED);
+        balanceLabel.setText("Balance: ₹0.0");
+        output.setText("✅ Logged out successfully!");
+        setButtonsEnabled(false);
+    }
+
+    private void depositMoney() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        try {
+            double amt = Double.parseDouble(depositField.getText());
+            currentAcc.deposit(amt);
+            balanceLabel.setText("Balance: ₹" + currentAcc.balance);
+            output.setText("✅ Deposited ₹" + amt);
+        } catch (Exception e) {
+            output.setText("⚠️ Invalid deposit amount!");
+        }
+    }
+
+    private void withdrawMoney() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        try {
+            double amt = Double.parseDouble(withdrawField.getText());
+            if (currentAcc.withdraw(amt)) {
+                balanceLabel.setText("Balance: ₹" + currentAcc.balance);
+                output.setText("✅ Withdrawn ₹" + amt);
+            } else {
+                output.setText("❌ Insufficient Balance!");
+            }
+        } catch (Exception e) {
+            output.setText("⚠️ Invalid withdraw amount!");
+        }
+    }
+
+    private void transferMoney() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        try {
+            String accNo = transferAccField.getText().trim();
+            double amt = Double.parseDouble(transferAmtField.getText());
+            BankAccount toAcc = accounts.get(accNo);
+            if (toAcc == null) {
+                output.setText("❌ Account not found!");
+                return;
+            }
+            if (currentAcc.transfer(toAcc, amt)) {
+                balanceLabel.setText("Balance: ₹" + currentAcc.balance);
+                output.setText("✅ Transferred ₹" + amt + " to " + toAcc.holderName);
+            } else {
+                output.setText("❌ Transfer failed! Insufficient balance.");
+            }
+        } catch (Exception e) {
+            output.setText("⚠️ Invalid transfer details!");
+        }
+    }
+
+    private void showHistory() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        StringBuilder sb = new StringBuilder("📜 Transaction History:\n");
+        for (String h : currentAcc.getHistory()) {
+            sb.append(h).append("\n");
+        }
+        output.setText(sb.toString());
+    }
+
+    private void applyLoan() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        try {
+            double loanAmt = Double.parseDouble(loanField.getText());
+            if (loanAmt <= currentAcc.balance * 5) {
+                currentAcc.deposit(loanAmt);
+                balanceLabel.setText("Balance: ₹" + currentAcc.balance);
+                output.setText("✅ Loan approved! ₹" + loanAmt + " credited.");
+            } else {
+                output.setText("❌ Loan request denied. Amount too high.");
+            }
+        } catch (Exception e) {
+            output.setText("⚠️ Invalid loan amount!");
+        }
+    }
+
+    private void startFD() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        try {
+            double amt = Double.parseDouble(fdField.getText());
+            double maturity = amt * 1.05; // 5% simple interest
+            output.setText("📈 FD started: ₹" + amt + "\nMaturity after 1 year: ₹" + maturity);
+        } catch (Exception e) {
+            output.setText("⚠️ Invalid FD amount!");
+        }
+    }
+
+    private void saveStatement() {
+        if (currentAcc == null) {
+            output.setText("⚠️ Login first!");
+            return;
+        }
+        try {
+            String fileName = "BankStatement_" + currentAcc.holderName + ".txt";
+            PrintWriter writer = new PrintWriter(new FileWriter(fileName));
+            writer.println("🏦 SMART BANK STATEMENT");
+            writer.println("Account No: " + currentAcc.accountNumber);
+            writer.println("Holder: " + currentAcc.holderName);
+            writer.println("Balance: ₹" + currentAcc.balance);
+            writer.println("---------------------------------------------------");
+            for (String h : currentAcc.getHistory()) {
+                writer.println(h);
+            }
+            writer.close();
+            output.setText("💾 Statement saved: " + fileName);
+        } catch (Exception e) {
+            output.setText("⚠️ Error saving statement!");
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SmartBankApp().setVisible(true));
+    }
+}

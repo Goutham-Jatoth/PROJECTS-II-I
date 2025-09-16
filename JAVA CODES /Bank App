@@ -1,0 +1,339 @@
+import java.util.*;
+
+class BankAccount {
+    String name, accountNo, pin;
+    double balance = 0.0;
+    List<String> history = new ArrayList<>();
+
+    BankAccount(String name, String accNo, String pin) {
+        this.name = name;
+        this.accountNo = accNo;
+        this.pin = pin;
+        history.add("Account created.");
+    }
+
+    boolean checkPin(String p) { return pin.equals(p); }
+
+    void deposit(double amt) {
+        balance += amt;
+        history.add("Deposited ₹" + amt);
+    }
+
+    boolean withdraw(double amt) {
+        if (balance >= amt) {
+            balance -= amt;
+            history.add("Withdrew ₹" + amt);
+            return true;
+        }
+        return false;
+    }
+
+    boolean transfer(BankAccount to, double amt) {
+        if (balance >= amt) {
+            balance -= amt;
+            to.balance += amt;
+            history.add("Transferred ₹" + amt + " to " + to.accountNo);
+            to.history.add("Received ₹" + amt + " from " + accountNo);
+            return true;
+        }
+        return false;
+    }
+
+    boolean applyLoan(double amt) {
+        if (amt <= balance * 5) {
+            balance += amt;
+            history.add("Loan approved ₹" + amt);
+            return true;
+        }
+        history.add("Loan denied ₹" + amt);
+        return false;
+    }
+
+    boolean startFD(double amt) {
+        if (balance >= amt) {
+            balance -= amt;
+            double maturity = amt * 1.05; // 5% interest
+            history.add("FD started ₹" + amt + " → Maturity ₹" + maturity);
+            return true;
+        }
+        return false;
+    }
+
+    void showHistory() {
+        System.out.println("\n📜 Transaction History:");
+        for (String h : history) System.out.println(" - " + h);
+    }
+}
+
+public class BankApp {
+    private static Map<String, BankAccount> accounts = new HashMap<>();
+    private static int accCounter = 1000;
+    private static Scanner sc = new Scanner(System.in);
+    private static BankAccount currentUser;
+
+    public static void main(String[] args) {
+        while (true) {
+            System.out.println("\n=== 🏦 SMART BANK APP ===");
+            if (currentUser == null) {
+                System.out.println("1. Register");
+                System.out.println("2. Login");
+                System.out.println("3. Exit");
+                System.out.print("Choose: ");
+                int ch = sc.nextInt();
+                switch (ch) {
+                    case 1 -> register();
+                    case 2 -> login();
+                    case 3 -> { System.out.println("Goodbye 👋"); return; }
+                    default -> System.out.println("Invalid choice!");
+                }
+            } else {
+                System.out.println("Welcome, " + currentUser.name + " (Acc: " + currentUser.accountNo + ")");
+                System.out.println("Balance: ₹" + currentUser.balance);
+                System.out.println("\n1. Deposit");
+                System.out.println("2. Withdraw");
+                System.out.println("3. Transfer");
+                System.out.println("4. Apply Loan");
+                System.out.println("5. Fixed Deposit");
+                System.out.println("6. Transaction History");
+                System.out.println("7. Logout");
+                System.out.print("Choose: ");
+                int ch = sc.nextInt();
+                switch (ch) {
+                    case 1 -> deposit();
+                    case 2 -> withdraw();
+                    case 3 -> transfer();
+                    case 4 -> loan();
+                    case 5 -> fd();
+                    case 6 -> currentUser.showHistory();
+                    case 7 -> { currentUser = null; System.out.println("Logged out ✅"); }
+                    default -> System.out.println("Invalid choice!");
+                }
+            }
+        }
+    }
+
+    private static void register() {
+        System.out.print("Enter your name: ");
+        String name = sc.next();
+        System.out.print("Set a PIN: ");
+        String pin = sc.next();
+        String accNo = "AC" + accCounter++;
+        BankAccount acc = new BankAccount(name, accNo, pin);
+        accounts.put(accNo, acc);
+        System.out.println("✅ Registered! Your Account No: " + accNo);
+    }
+
+    private static void login() {
+        System.out.print("Enter Account No: ");
+        String accNo = sc.next();
+        System.out.print("Enter PIN: ");
+        String pin = sc.next();
+        BankAccount acc = accounts.get(accNo);
+        if (acc != null && acc.checkPin(pin)) {
+            currentUser = acc;
+            System.out.println("✅ Login successful!");
+        } else {
+            System.out.println("❌ Invalid account or PIN");
+        }
+    }
+
+    private static void deposit() {
+        System.out.print("Enter amount: ");
+        double amt = sc.nextDouble();
+        currentUser.deposit(amt);
+        System.out.println("✅ Deposited ₹" + amt);
+    }
+
+    private static void withdraw() {
+        System.out.print("Enter amount: ");
+        double amt = sc.nextDouble();
+        if (currentUser.withdraw(amt))
+            System.out.println("✅ Withdrawn ₹" + amt);
+        else
+            System.out.println("❌ Insufficient balance");
+    }
+
+    private static void transfer() {
+        System.out.print("Enter receiver Account No: ");
+        String toAcc = sc.next();
+        System.out.print("Enter amount: ");
+        double amt = sc.nextDouble();
+        BankAccount receiver = accounts.get(toAcc);
+        if (receiver == null) {
+            System.out.println("❌ Account not found");
+            return;
+        }
+        if (currentUser.transfer(receiver, amt))
+            System.out.println("✅ Transferred ₹" + amt + " to " + toAcc);
+        else
+            System.out.println("❌ Insufficient funds");
+    }
+
+    private static void loan() {
+        System.out.print("Enter loan amount: ");
+        double amt = sc.nextDouble();
+        if (currentUser.applyLoan(amt))
+            System.out.println("✅ Loan approved ₹" + amt);
+        else
+            System.out.println("❌ Loan denied");
+    }
+
+    private static void fd() {
+        System.out.print("Enter FD amount: ");
+        double amt = sc.nextDouble();
+        if (currentUser.startFD(amt))
+            System.out.println("✅ FD started ₹" + amt);
+        else
+            System.out.println("❌ Not enough balance");
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+import java.util.*;
+
+class BankAccount {
+    String name, accountNo, pin;
+    double balance = 0.0;
+    LinkedList<String> history = new LinkedList<>();
+
+    BankAccount(String name, String accNo, String pin) {
+        this.name = name;
+        this.accountNo = accNo;
+        this.pin = pin;
+        addHistory("Account created.");
+    }
+
+    boolean checkPin(String p) { return pin.equals(p); }
+
+    void deposit(double amt) {
+        balance += amt;
+        addHistory("Credited ₹" + amt + " | Balance: ₹" + balance);
+    }
+
+    boolean withdraw(double amt) {
+        if (balance >= amt) {
+            balance -= amt;
+            addHistory("Debited ₹" + amt + " | Balance: ₹" + balance);
+            return true;
+        }
+        addHistory("Failed Debit ₹" + amt + " | Insufficient Balance");
+        return false;
+    }
+
+    void showBalance() {
+        System.out.println("💰 Current Balance: ₹" + balance);
+    }
+
+    void miniStatement() {
+        System.out.println("\n📜 Mini Statement (Last 5):");
+        int start = Math.max(history.size() - 5, 0);
+        for (int i = start; i < history.size(); i++) {
+            System.out.println(" - " + history.get(i));
+        }
+    }
+
+    void fullStatement() {
+        System.out.println("\n📜 Full Transaction History:");
+        for (String h : history) System.out.println(" - " + h);
+    }
+
+    private void addHistory(String h) {
+        history.add(h + " [" + new Date() + "]");
+    }
+}
+
+public class BankApp {
+    private static Map<String, BankAccount> accounts = new HashMap<>();
+    private static int accCounter = 1000;
+    private static Scanner sc = new Scanner(System.in);
+    private static BankAccount currentUser;
+
+    public static void main(String[] args) {
+        while (true) {
+            System.out.println("\n=== 🏦 SMART BANK APP ===");
+            if (currentUser == null) {
+                System.out.println("1. Register");
+                System.out.println("2. Login");
+                System.out.println("3. Exit");
+                System.out.print("Choose: ");
+                int ch = sc.nextInt();
+                switch (ch) {
+                    case 1 -> register();
+                    case 2 -> login();
+                    case 3 -> { System.out.println("Goodbye 👋"); return; }
+                    default -> System.out.println("Invalid choice!");
+                }
+            } else {
+                System.out.println("\nWelcome, " + currentUser.name + " (Acc: " + currentUser.accountNo + ")");
+                System.out.println("Balance: ₹" + currentUser.balance);
+                System.out.println("\n1. Credit (Deposit)");
+                System.out.println("2. Debit (Withdraw)");
+                System.out.println("3. Check Balance");
+                System.out.println("4. Mini Statement");
+                System.out.println("5. Full Statement");
+                System.out.println("6. Logout");
+                System.out.print("Choose: ");
+                int ch = sc.nextInt();
+                switch (ch) {
+                    case 1 -> deposit();
+                    case 2 -> withdraw();
+                    case 3 -> currentUser.showBalance();
+                    case 4 -> currentUser.miniStatement();
+                    case 5 -> currentUser.fullStatement();
+                    case 6 -> { currentUser = null; System.out.println("Logged out ✅"); }
+                    default -> System.out.println("Invalid choice!");
+                }
+            }
+        }
+    }
+
+    private static void register() {
+        System.out.print("Enter your name: ");
+        String name = sc.next();
+        System.out.print("Set a PIN: ");
+        String pin = sc.next();
+        String accNo = "AC" + accCounter++;
+        BankAccount acc = new BankAccount(name, accNo, pin);
+        accounts.put(accNo, acc);
+        System.out.println("✅ Registered! Your Account No: " + accNo);
+    }
+
+    private static void login() {
+        System.out.print("Enter Account No: ");
+        String accNo = sc.next();
+        System.out.print("Enter PIN: ");
+        String pin = sc.next();
+        BankAccount acc = accounts.get(accNo);
+        if (acc != null && acc.checkPin(pin)) {
+            currentUser = acc;
+            System.out.println("✅ Login successful!");
+        } else {
+            System.out.println("❌ Invalid account or PIN");
+        }
+    }
+
+    private static void deposit() {
+        System.out.print("Enter amount: ");
+        double amt = sc.nextDouble();
+        currentUser.deposit(amt);
+        System.out.println("✅ Credited ₹" + amt);
+    }
+
+    private static void withdraw() {
+        System.out.print("Enter amount: ");
+        double amt = sc.nextDouble();
+        if (currentUser.withdraw(amt))
+            System.out.println("✅ Debited ₹" + amt);
+        else
+            System.out.println("❌ Insufficient balance");
+    }
+}

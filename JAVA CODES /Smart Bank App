@@ -365,3 +365,27 @@ public class SmartBankApp extends JFrame {
         SwingUtilities.invokeLater(() -> new SmartBankApp().setVisible(true));
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+⚡ Example Flow:
+
+Register → Name: John, PIN: 1234 → gets Account No: AC1000.
+
+Login with AC1000 + 1234.
+
+Deposit ₹5000 → Balance = ₹5000.
+
+Apply Loan ₹10000 → Balance = ₹15000.
+
+Save Statement → creates BankStatement_John.txt.

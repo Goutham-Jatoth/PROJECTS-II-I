@@ -1,0 +1,199 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+
+public class OnlineMedicalShopping extends JFrame {
+    private JComboBox<String> diseaseBox;
+    private JTextArea medicineArea;
+    private JTextArea cartArea;
+    private JButton addToCartBtn, checkoutBtn;
+    private Map<String, List<String>> diseaseMedicineMap;
+    private Map<String, Integer> medicinePriceMap;
+    private List<String> cart;
+
+    public OnlineMedicalShopping() {
+        setTitle("💊 Online Medical Shopping System");
+        setSize(600, 500);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        // Medicines & Prices
+        diseaseMedicineMap = new HashMap<>();
+        medicinePriceMap = new HashMap<>();
+        cart = new ArrayList<>();
+
+        // Disease-Medicine Mapping
+        diseaseMedicineMap.put("Fever", Arrays.asList("Paracetamol", "Dolo-650", "Crocin"));
+        diseaseMedicineMap.put("Cold", Arrays.asList("Cetrizine", "Sinarest", "Vicks Inhaler"));
+        diseaseMedicineMap.put("Headache", Arrays.asList("Saridon", "Disprin", "Ibuprofen"));
+        diseaseMedicineMap.put("Diabetes", Arrays.asList("Metformin", "Glycomet", "Insulin"));
+        diseaseMedicineMap.put("BP (Hypertension)", Arrays.asList("Amlodipine", "Telmisartan", "Losartan"));
+
+        // Prices
+        medicinePriceMap.put("Paracetamol", 30);
+        medicinePriceMap.put("Dolo-650", 40);
+        medicinePriceMap.put("Crocin", 35);
+        medicinePriceMap.put("Cetrizine", 25);
+        medicinePriceMap.put("Sinarest", 50);
+        medicinePriceMap.put("Vicks Inhaler", 60);
+        medicinePriceMap.put("Saridon", 20);
+        medicinePriceMap.put("Disprin", 15);
+        medicinePriceMap.put("Ibuprofen", 45);
+        medicinePriceMap.put("Metformin", 80);
+        medicinePriceMap.put("Glycomet", 90);
+        medicinePriceMap.put("Insulin", 250);
+        medicinePriceMap.put("Amlodipine", 70);
+        medicinePriceMap.put("Telmisartan", 100);
+        medicinePriceMap.put("Losartan", 85);
+
+        // North Panel: Disease Selection
+        JPanel topPanel = new JPanel();
+        topPanel.add(new JLabel("Select Disease:"));
+        diseaseBox = new JComboBox<>(diseaseMedicineMap.keySet().toArray(new String[0]));
+        topPanel.add(diseaseBox);
+
+        JButton showBtn = new JButton("Show Medicines");
+        topPanel.add(showBtn);
+
+        add(topPanel, BorderLayout.NORTH);
+
+        // Center Panel: Medicine Suggestions
+        medicineArea = new JTextArea(10, 25);
+        medicineArea.setEditable(false);
+        medicineArea.setBorder(BorderFactory.createTitledBorder("Available Medicines"));
+        add(new JScrollPane(medicineArea), BorderLayout.CENTER);
+
+        // East Panel: Cart
+        cartArea = new JTextArea(10, 20);
+        cartArea.setEditable(false);
+        cartArea.setBorder(BorderFactory.createTitledBorder("🛒 Cart"));
+        add(new JScrollPane(cartArea), BorderLayout.EAST);
+
+        // South Panel: Buttons
+        JPanel bottomPanel = new JPanel();
+        addToCartBtn = new JButton("Add to Cart");
+        checkoutBtn = new JButton("Checkout");
+        bottomPanel.add(addToCartBtn);
+        bottomPanel.add(checkoutBtn);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        // Button Actions
+        showBtn.addActionListener(e -> showMedicines());
+        addToCartBtn.addActionListener(e -> addToCart());
+        checkoutBtn.addActionListener(e -> checkout());
+
+        setVisible(true);
+    }
+
+    private void showMedicines() {
+        String disease = (String) diseaseBox.getSelectedItem();
+        List<String> medicines = diseaseMedicineMap.get(disease);
+        medicineArea.setText("");
+        for (String med : medicines) {
+            medicineArea.append(med + " - ₹" + medicinePriceMap.get(med) + "\n");
+        }
+    }
+
+    private void addToCart() {
+        String selectedText = medicineArea.getSelectedText();
+        if (selectedText != null) {
+            String medName = selectedText.split(" - ")[0].trim();
+            cart.add(medName);
+            updateCart();
+        } else {
+            JOptionPane.showMessageDialog(this, "Please select a medicine text and then click Add to Cart!");
+        }
+    }
+
+    private void updateCart() {
+        cartArea.setText("");
+        int total = 0;
+        for (String med : cart) {
+            int price = medicinePriceMap.get(med);
+            cartArea.append(med + " - ₹" + price + "\n");
+            total += price;
+        }
+        cartArea.append("\nTotal: ₹" + total);
+    }
+
+    private void checkout() {
+        if (cart.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Cart is empty!");
+            return;
+        }
+        int total = cart.stream().mapToInt(m -> medicinePriceMap.get(m)).sum();
+        JOptionPane.showMessageDialog(this, "✅ Order placed successfully!\nTotal Bill: ₹" + total);
+        cart.clear();
+        updateCart();
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(OnlineMedicalShopping::new);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+📑 Mini Project Report – Online Medical Shopping System
+1. Abstract
+
+The Online Medical Shopping System is a GUI-based Java application where users can select a disease, view recommended medicines, add them to a cart, and place an order. The system simulates an online pharmacy by mapping diseases to relevant medicines and calculating the bill dynamically.
+
+2. Objectives
+
+To provide a digital medicine shopping solution.
+
+To map diseases with relevant medicines.
+
+To implement shopping cart functionality.
+
+To use GUI programming (Swing & AWT) for user interaction.
+
+3. Features
+
+Disease selection with medicine suggestions.
+
+Add to Cart functionality with bill calculation.
+
+View Cart with running total.
+
+Checkout with confirmation.
+
+GUI interface for ease of use.
+
+4. Tools & Technologies Used
+
+Programming Language: Java (JDK 8 or above)
+
+Libraries: Swing, AWT
+
+Concepts: OOP, Event Handling, GUI Programming
+
+5. Conclusion
+
+The Online Medical Shopping System provides a simulation of digital pharmacy management. By integrating disease-to-medicine mapping and cart functionality, it demonstrates Java GUI, business logic, and event handling skills. This makes it an excellent project for both academic purposes and portfolio presentation.

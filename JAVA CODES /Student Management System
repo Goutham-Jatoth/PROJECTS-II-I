@@ -1,0 +1,445 @@
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.*;
+
+public class StudentManagementSystem extends JFrame {
+
+    private JTextField txtID, txtName, txtAge, txtDept, txtEmail, txtSearch;
+    private JButton btnAdd, btnUpdate, btnDelete, btnSearch, btnRefresh;
+    private JTable studentTable;
+    private DefaultTableModel tableModel;
+    private final String DATA_FILE = "students.txt";
+    private Map<String, Student> studentMap;
+
+    public StudentManagementSystem() {
+        studentMap = new LinkedHashMap<>();
+        loadData();
+        initUI();
+        updateTable();
+    }
+
+    private void initUI() {
+        setTitle("🎓 Student Management System");
+        setSize(800, 500);
+        setLayout(new BorderLayout(10, 10));
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+
+        // Top Panel – Form
+        JPanel formPanel = new JPanel(new GridLayout(2, 5, 10, 10));
+        txtID = new JTextField();
+        txtName = new JTextField();
+        txtAge = new JTextField();
+        txtDept = new JTextField();
+        txtEmail = new JTextField();
+
+        formPanel.add(new JLabel("Student ID:"));
+        formPanel.add(new JLabel("Name:"));
+        formPanel.add(new JLabel("Age:"));
+        formPanel.add(new JLabel("Department:"));
+        formPanel.add(new JLabel("Email:"));
+
+        formPanel.add(txtID);
+        formPanel.add(txtName);
+        formPanel.add(txtAge);
+        formPanel.add(txtDept);
+        formPanel.add(txtEmail);
+
+        add(formPanel, BorderLayout.NORTH);
+
+        // Center Panel – Table
+        tableModel = new DefaultTableModel(new String[]{"ID", "Name", "Age", "Department", "Email"}, 0);
+        studentTable = new JTable(tableModel);
+        studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollPane = new JScrollPane(studentTable);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // Bottom Panel – Buttons
+        JPanel buttonPanel = new JPanel();
+        btnAdd = new JButton("Add Student");
+        btnUpdate = new JButton("Update Student");
+        btnDelete = new JButton("Delete Student");
+        txtSearch = new JTextField(10);
+        btnSearch = new JButton("Search");
+        btnRefresh = new JButton("Refresh");
+
+        buttonPanel.add(btnAdd);
+        buttonPanel.add(btnUpdate);
+        buttonPanel.add(btnDelete);
+        buttonPanel.add(new JLabel("Search:"));
+        buttonPanel.add(txtSearch);
+        buttonPanel.add(btnSearch);
+        buttonPanel.add(btnRefresh);
+
+        add(buttonPanel, BorderLayout.SOUTH);
+
+        // Button Actions
+        btnAdd.addActionListener(e -> addStudent());
+        btnUpdate.addActionListener(e -> updateStudent());
+        btnDelete.addActionListener(e -> deleteStudent());
+        btnSearch.addActionListener(e -> searchStudent());
+        btnRefresh.addActionListener(e -> updateTable());
+
+        // Table row click
+        studentTable.addMouseListener(new MouseAdapter() {
+            public void mouseClicked(MouseEvent e) {
+                int row = studentTable.getSelectedRow();
+                if (row >= 0) {
+                    txtID.setText(tableModel.getValueAt(row, 0).toString());
+                    txtName.setText(tableModel.getValueAt(row, 1).toString());
+                    txtAge.setText(tableModel.getValueAt(row, 2).toString());
+                    txtDept.setText(tableModel.getValueAt(row, 3).toString());
+                    txtEmail.setText(tableModel.getValueAt(row, 4).toString());
+                }
+            }
+        });
+
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
+    // Add Student
+    private void addStudent() {
+        String id = txtID.getText().trim();
+        if (id.isEmpty() || studentMap.containsKey(id)) {
+            JOptionPane.showMessageDialog(this, "Invalid or duplicate ID.");
+            return;
+        }
+        Student s = getStudentFromFields();
+        if (s != null) {
+            studentMap.put(id, s);
+            saveData();
+            updateTable();
+            clearFields();
+            JOptionPane.showMessageDialog(this, "Student added successfully.");
+        }
+    }
+
+    // Update Student
+    private void updateStudent() {
+        String id = txtID.getText().trim();
+        if (!studentMap.containsKey(id)) {
+            JOptionPane.showMessageDialog(this, "Student ID not found.");
+            return;
+        }
+        Student s = getStudentFromFields();
+        if (s != null) {
+            studentMap.put(id, s);
+            saveData();
+            updateTable();
+            clearFields();
+            JOptionPane.showMessageDialog(this, "Student updated successfully.");
+        }
+    }
+
+    // Delete Student
+    private void deleteStudent() {
+        String id = txtID.getText().trim();
+        if (!studentMap.containsKey(id)) {
+            JOptionPane.showMessageDialog(this, "Student ID not found.");
+            return;
+        }
+        studentMap.remove(id);
+        saveData();
+        updateTable();
+        clearFields();
+        JOptionPane.showMessageDialog(this, "Student deleted successfully.");
+    }
+
+    // Search Student
+    private void searchStudent() {
+        String keyword = txtSearch.getText().trim().toLowerCase();
+        tableModel.setRowCount(0);
+        for (Student s : studentMap.values()) {
+            if (s.id.toLowerCase().contains(keyword) || s.name.toLowerCase().contains(keyword)) {
+                tableModel.addRow(new Object[]{s.id, s.name, s.age, s.department, s.email});
+            }
+        }
+    }
+
+    // Update Table
+    private void updateTable() {
+        tableModel.setRowCount(0);
+        for (Student s : studentMap.values()) {
+            tableModel.addRow(new Object[]{s.id, s.name, s.age, s.department, s.email});
+        }
+    }
+
+    // Clear input fields
+    private void clearFields() {
+        txtID.setText("");
+        txtName.setText("");
+        txtAge.setText("");
+        txtDept.setText("");
+        txtEmail.setText("");
+    }
+
+    // Read input fields and create Student object
+    private Student getStudentFromFields() {
+        try {
+            String id = txtID.getText().trim();
+            String name = txtName.getText().trim();
+            int age = Integer.parseInt(txtAge.getText().trim());
+            String dept = txtDept.getText().trim();
+            String email = txtEmail.getText().trim();
+            if (id.isEmpty() || name.isEmpty() || dept.isEmpty() || email.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "All fields are required.");
+                return null;
+            }
+            return new Student(id, name, age, dept, email);
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Invalid age. Please enter a number.");
+            return null;
+        }
+    }
+
+    // Load data from file
+    private void loadData() {
+        File file = new File(DATA_FILE);
+        if (!file.exists()) return;
+        try (Scanner sc = new Scanner(file)) {
+            while (sc.hasNextLine()) {
+                String[] parts = sc.nextLine().split(",");
+                if (parts.length == 5) {
+                    studentMap.put(parts[0], new Student(parts[0], parts[1], Integer.parseInt(parts[2]), parts[3], parts[4]));
+                }
+            }
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Error loading data: " + e.getMessage());
+        }
+    }
+
+    // Save data to file
+    private void saveData() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(DATA_FILE))) {
+            for (Student s : studentMap.values()) {
+                pw.println(s.id + "," + s.name + "," + s.age + "," + s.department + "," + s.email);
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Error saving data: " + e.getMessage());
+        }
+    }
+
+    // Student class
+    private static class Student {
+        String id, name, department, email;
+        int age;
+
+        public Student(String id, String name, int age, String dept, String email) {
+            this.id = id;
+            this.name = name;
+            this.age = age;
+            this.department = dept;
+            this.email = email;
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new StudentManagementSystem());
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+1. Cover Page
+
+Project Title: Student Management System (Advanced Version)
+
+Developer Name: [Your Name]
+
+Roll Number: [Your Roll Number]
+
+Department: [Your Department]
+
+College: [Your College Name]
+
+Semester / Year: [Semester & Year]
+
+Submission Date: [Date]
+
+2. Abstract
+
+The Student Management System (SMS) is a GUI-based application developed in Java Swing for managing student records efficiently.
+The system allows users to add, update, delete, view, and search student information. It also maintains persistent storage using text files so that all records are retained even after closing the application.
+
+The main objective is to simplify record management in colleges or institutions, reduce manual paperwork, and provide a user-friendly interface for easy access and modification of student data.
+
+3. Objectives
+
+To manage student records efficiently and systematically.
+
+To reduce manual errors in maintaining student data.
+
+To provide an interactive GUI for adding, updating, deleting, and searching student records.
+
+To implement persistent storage so that student data is not lost.
+
+To enhance understanding of Java Swing, OOP, and file handling.
+
+4. Tools & Technologies
+
+Programming Language: Java (JDK 8 or above)
+
+GUI Framework: Swing (javax.swing)
+
+File Handling: Text file (students.txt) for persistent storage
+
+IDE: NetBeans / Eclipse / IntelliJ IDEA (Optional)
+
+Concepts Used:
+
+Object-Oriented Programming (Classes, Objects, Maps)
+
+Exception Handling
+
+File I/O
+
+Collections Framework (Map, List)
+
+5. Features of the System
+
+Add Student: Insert student details including ID, Name, Age, Department, and Email.
+
+Update Student: Modify existing student information.
+
+Delete Student: Remove student records permanently.
+
+View All Students: Display all records in a tabular format.
+
+Search Student: Search by Student ID or Name.
+
+Persistent Storage: Records are saved to students.txt and loaded automatically on startup.
+
+Interactive GUI: User-friendly interface with real-time table updates.
+
+6. System Architecture / Flow Diagram
+
+Flow of the Student Management System:
+
+[Start] → [Load Student Records from File] → [Display GUI] 
+       → [Add / Update / Delete / Search Student] → [Update Table & File]
+       → [Exit] → [Save Records to File]
+
+
+Components:
+
+GUI Layer: Swing Components (JFrame, JTable, JTextField, JButton)
+
+Data Layer: Student class objects, Map to store student records
+
+File Handling: students.txt to save/load student information
+
+7. GUI Screenshots
+
+(Use actual screenshots after running the program)
+
+Main Interface: Shows text fields for ID, Name, Age, Department, Email and buttons for Add, Update, Delete, Search, Refresh.
+
+Student Table View: Displays all records in JTable.
+
+Add Student Example: Shows a new student added successfully.
+
+Search Student Example: Shows filtered results in the table.
+
+Delete / Update Example: Confirmation after deleting or updating records.
+
+8. Code Explanation
+
+Main Class: StudentManagementSystem – handles GUI and functionality.
+
+Student Class: Encapsulates student attributes: ID, Name, Age, Department, Email.
+
+Data Structures Used:
+
+Map<String, Student> – to store student records with ID as key.
+
+DefaultTableModel – to manage JTable data dynamically.
+
+Key Methods:
+
+addStudent() – Adds a new student after validation.
+
+updateStudent() – Updates student information.
+
+deleteStudent() – Removes student record.
+
+searchStudent() – Searches by ID or Name.
+
+updateTable() – Refreshes the JTable.
+
+loadData() – Loads student records from file.
+
+saveData() – Saves student records to file.
+
+9. Sample Output
+
+Adding a Student:
+
+Student ID: S001  
+Name: John Doe  
+Age: 20  
+Department: CSE  
+Email: john@example.com  
+→ "Student added successfully."
+
+
+Search Example:
+
+Search Keyword: John  
+→ Displays all matching students in the table.
+
+
+Update Example:
+
+Change Age: 21 → "Student updated successfully."
+
+
+Delete Example:
+
+Select Student ID → Click Delete → "Student deleted successfully."
+
+10. Advantages
+
+Reduces manual errors and paperwork.
+
+Quick access to student information.
+
+Persistent storage ensures no data loss.
+
+Easy to use GUI for beginners and non-technical staff.
+
+Can be extended for advanced features like PDF/CSV export, multi-user login, etc.
+
+11. Limitations
+
+Only handles text file storage (no database).
+
+No user authentication or role-based access control.
+
+Limited to small-scale student records.
+
+Advanced features like sorting, multi-field search, or reporting are not implemented.
+
+12. Conclusion
+
+The Student Management System is a fully functional GUI-based application that demonstrates the use of Java Swing, OOP concepts, and file handling.
+It efficiently handles student records, provides a user-friendly interface, and ensures data persistence. This project can be used as a mini-project for submission and can be extended for future enhancements.

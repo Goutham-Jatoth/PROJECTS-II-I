@@ -1,0 +1,252 @@
+import java.io.*;
+import java.util.*;
+
+class Customer implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    String customerId;
+    String name;
+    String address;
+    int unitsConsumed;
+    double billAmount;
+
+    Customer(String customerId, String name, String address, int unitsConsumed) {
+        this.customerId = customerId;
+        this.name = name;
+        this.address = address;
+        this.unitsConsumed = unitsConsumed;
+        this.billAmount = calculateBill(unitsConsumed);
+    }
+
+    public void updateUnits(int newUnits) {
+        this.unitsConsumed = newUnits;
+        this.billAmount = calculateBill(newUnits);
+    }
+
+    private double calculateBill(int units) {
+        double amount = 0;
+        if (units <= 100) {
+            amount = units * 5;
+        } else if (units <= 300) {
+            amount = (100 * 5) + ((units - 100) * 7);
+        } else {
+            amount = (100 * 5) + (200 * 7) + ((units - 300) * 10);
+        }
+        return amount;
+    }
+
+    @Override
+    public String toString() {
+        return "CustomerID: " + customerId + " | Name: " + name + " | Address: " + address +
+               " | Units: " + unitsConsumed + " | Bill: ₹" + billAmount;
+    }
+}
+
+class ElectricityBoard {
+    private Map<String, Customer> customers;
+    private static final String FILE_NAME = "billingdata.ser";
+    private Scanner sc = new Scanner(System.in);
+
+    ElectricityBoard() {
+        customers = loadData();
+    }
+
+    public void addCustomer() {
+        System.out.print("Enter Customer ID: ");
+        String id = sc.next();
+        if (customers.containsKey(id)) {
+            System.out.println("❌ Customer already exists!");
+            return;
+        }
+
+        System.out.print("Enter Name: ");
+        String name = sc.next();
+
+        System.out.print("Enter Address: ");
+        String address = sc.next();
+
+        System.out.print("Enter Units Consumed: ");
+        int units = sc.nextInt();
+
+        Customer c = new Customer(id, name, address, units);
+        customers.put(id, c);
+        saveData();
+        System.out.println("✅ Customer added successfully!");
+    }
+
+    public void updateUnits() {
+        System.out.print("Enter Customer ID: ");
+        String id = sc.next();
+        if (!customers.containsKey(id)) {
+            System.out.println("❌ Customer not found!");
+            return;
+        }
+        System.out.print("Enter New Units Consumed: ");
+        int units = sc.nextInt();
+        customers.get(id).updateUnits(units);
+        saveData();
+        System.out.println("✅ Units updated & bill recalculated!");
+    }
+
+    public void searchCustomer() {
+        System.out.print("Enter Customer ID: ");
+        String id = sc.next();
+        if (customers.containsKey(id)) {
+            System.out.println(customers.get(id));
+        } else {
+            System.out.println("❌ Customer not found!");
+        }
+    }
+
+    public void viewAllCustomers() {
+        System.out.println("\n===== All Customers =====");
+        if (customers.isEmpty()) {
+            System.out.println("No customers found.");
+        } else {
+            for (Customer c : customers.values()) {
+                System.out.println(c);
+            }
+        }
+    }
+
+    public void deleteCustomer() {
+        System.out.print("Enter Customer ID to delete: ");
+        String id = sc.next();
+        if (customers.remove(id) != null) {
+            saveData();
+            System.out.println("✅ Customer deleted successfully!");
+        } else {
+            System.out.println("❌ Customer not found!");
+        }
+    }
+
+    // ---------------- File Handling ----------------
+    private void saveData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oos.writeObject(customers);
+        } catch (IOException e) {
+            System.out.println("⚠️ Error saving data: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Customer> loadData() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            return (Map<String, Customer>) ois.readObject();
+        } catch (FileNotFoundException e) {
+            return new HashMap<>();
+        } catch (Exception e) {
+            System.out.println("⚠️ Error loading data: " + e.getMessage());
+            return new HashMap<>();
+        }
+    }
+}
+
+public class ElectricityBillingSystem {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        ElectricityBoard board = new ElectricityBoard();
+
+        while (true) {
+            System.out.println("\n===== ELECTRICITY BILLING SYSTEM =====");
+            System.out.println("1. Add Customer");
+            System.out.println("2. Update Units");
+            System.out.println("3. Search Customer");
+            System.out.println("4. View All Customers");
+            System.out.println("5. Delete Customer");
+            System.out.println("6. Exit");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    board.addCustomer();
+                    break;
+                case 2:
+                    board.updateUnits();
+                    break;
+                case 3:
+                    board.searchCustomer();
+                    break;
+                case 4:
+                    board.viewAllCustomers();
+                    break;
+                case 5:
+                    board.deleteCustomer();
+                    break;
+                case 6:
+                    System.out.println("🚪 Exiting... Thank You!");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("❌ Invalid Choice!");
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+📑 Mini Project Report – Electricity Billing System
+1. Abstract
+
+The Electricity Billing System is a console-based Java application designed to calculate and manage electricity bills for customers. Each customer is identified with a unique ID and has details such as name, address, and units consumed. The system calculates the bill based on a slab rate system and provides functionalities to add, search, update, and delete customer records. Data is stored permanently using file serialization.
+
+2. Objectives
+
+To design an efficient system for managing electricity bills.
+
+To implement slab-based billing.
+
+To enable customer record management (add, update, search, delete).
+
+To maintain persistent storage using files.
+
+To demonstrate OOP principles in real-world problem solving.
+
+3. Features
+
+Add Customer with details.
+
+Automatic Bill Generation using slab rates:
+
+0–100 units → ₹5/unit
+
+101–300 units → ₹7/unit
+
+Above 300 units → ₹10/unit
+
+Update Units with recalculated bill.
+
+Search Customer by ID.
+
+Delete Customer record.
+
+View All Customers with bills.
+
+Persistent Storage via Java Serialization (billingdata.ser).
+
+4. Tools & Technologies Used
+
+Programming Language: Java (JDK 8 or above)
+
+Concepts: OOP (Encapsulation, Abstraction, File Handling)
+
+Data Storage: File Serialization
+
+5. Conclusion
+
+The Electricity Billing System provides a digital solution for managing electricity billing operations. It efficiently calculates bills based on slab rates, while also supporting full customer record management. The project demonstrates Java programming and file handling skills, making it suitable for academic projects and interviews.

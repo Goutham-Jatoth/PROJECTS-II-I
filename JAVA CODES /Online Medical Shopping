@@ -4,33 +4,35 @@ import java.awt.event.*;
 import java.util.*;
 
 public class OnlineMedicalShopping extends JFrame {
-    private JComboBox<String> diseaseBox;
-    private JTextArea medicineArea;
+
+    private JComboBox<String> diseaseCombo;
+    private DefaultListModel<String> medicineListModel;
+    private JList<String> medicineList;
     private JTextArea cartArea;
-    private JButton addToCartBtn, checkoutBtn;
-    private Map<String, List<String>> diseaseMedicineMap;
+    private JButton addToCartButton, checkoutButton, showMedicinesButton;
+
+    private Map<String, java.util.List<String>> diseaseMedicineMap;
     private Map<String, Integer> medicinePriceMap;
-    private List<String> cart;
+    private java.util.List<String> cart;
 
     public OnlineMedicalShopping() {
-        setTitle("💊 Online Medical Shopping System");
-        setSize(600, 500);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLayout(new BorderLayout());
+        initData();
+        initUI();
+    }
 
-        // Medicines & Prices
-        diseaseMedicineMap = new HashMap<>();
-        medicinePriceMap = new HashMap<>();
+    private void initData() {
         cart = new ArrayList<>();
+        diseaseMedicineMap = new LinkedHashMap<>();
+        medicinePriceMap = new HashMap<>();
 
-        // Disease-Medicine Mapping
+        // Disease → medicines mapping
         diseaseMedicineMap.put("Fever", Arrays.asList("Paracetamol", "Dolo-650", "Crocin"));
         diseaseMedicineMap.put("Cold", Arrays.asList("Cetrizine", "Sinarest", "Vicks Inhaler"));
         diseaseMedicineMap.put("Headache", Arrays.asList("Saridon", "Disprin", "Ibuprofen"));
         diseaseMedicineMap.put("Diabetes", Arrays.asList("Metformin", "Glycomet", "Insulin"));
-        diseaseMedicineMap.put("BP (Hypertension)", Arrays.asList("Amlodipine", "Telmisartan", "Losartan"));
+        diseaseMedicineMap.put("Hypertension", Arrays.asList("Amlodipine", "Telmisartan", "Losartan"));
 
-        // Prices
+        // Medicine prices
         medicinePriceMap.put("Paracetamol", 30);
         medicinePriceMap.put("Dolo-650", 40);
         medicinePriceMap.put("Crocin", 35);
@@ -46,75 +48,91 @@ public class OnlineMedicalShopping extends JFrame {
         medicinePriceMap.put("Amlodipine", 70);
         medicinePriceMap.put("Telmisartan", 100);
         medicinePriceMap.put("Losartan", 85);
+    }
 
-        // North Panel: Disease Selection
+    private void initUI() {
+        setTitle("💊 Online Medical Shopping System");
+        setSize(750, 500);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+
+        // Top panel: disease selection
         JPanel topPanel = new JPanel();
         topPanel.add(new JLabel("Select Disease:"));
-        diseaseBox = new JComboBox<>(diseaseMedicineMap.keySet().toArray(new String[0]));
-        topPanel.add(diseaseBox);
-
-        JButton showBtn = new JButton("Show Medicines");
-        topPanel.add(showBtn);
-
+        diseaseCombo = new JComboBox<>(diseaseMedicineMap.keySet().toArray(new String[0]));
+        topPanel.add(diseaseCombo);
+        showMedicinesButton = new JButton("Show Medicines");
+        topPanel.add(showMedicinesButton);
         add(topPanel, BorderLayout.NORTH);
 
-        // Center Panel: Medicine Suggestions
-        medicineArea = new JTextArea(10, 25);
-        medicineArea.setEditable(false);
-        medicineArea.setBorder(BorderFactory.createTitledBorder("Available Medicines"));
-        add(new JScrollPane(medicineArea), BorderLayout.CENTER);
+        // Center panel: medicines list + cart
+        medicineListModel = new DefaultListModel<>();
+        medicineList = new JList<>(medicineListModel);
+        medicineList.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        JScrollPane medScroll = new JScrollPane(medicineList);
+        medScroll.setBorder(BorderFactory.createTitledBorder("Available Medicines"));
 
-        // East Panel: Cart
-        cartArea = new JTextArea(10, 20);
+        cartArea = new JTextArea();
         cartArea.setEditable(false);
-        cartArea.setBorder(BorderFactory.createTitledBorder("🛒 Cart"));
-        add(new JScrollPane(cartArea), BorderLayout.EAST);
+        JScrollPane cartScroll = new JScrollPane(cartArea);
+        cartScroll.setBorder(BorderFactory.createTitledBorder("🛒 Cart"));
 
-        // South Panel: Buttons
+        JPanel centerPanel = new JPanel(new GridLayout(1, 2, 10, 10));
+        centerPanel.add(medScroll);
+        centerPanel.add(cartScroll);
+        add(centerPanel, BorderLayout.CENTER);
+
+        // Bottom panel: action buttons
         JPanel bottomPanel = new JPanel();
-        addToCartBtn = new JButton("Add to Cart");
-        checkoutBtn = new JButton("Checkout");
-        bottomPanel.add(addToCartBtn);
-        bottomPanel.add(checkoutBtn);
+        addToCartButton = new JButton("Add to Cart");
+        checkoutButton = new JButton("Checkout");
+        bottomPanel.add(addToCartButton);
+        bottomPanel.add(checkoutButton);
         add(bottomPanel, BorderLayout.SOUTH);
 
-        // Button Actions
-        showBtn.addActionListener(e -> showMedicines());
-        addToCartBtn.addActionListener(e -> addToCart());
-        checkoutBtn.addActionListener(e -> checkout());
+        // Action listeners
+        showMedicinesButton.addActionListener(e -> showMedicines());
+        addToCartButton.addActionListener(e -> addToCart());
+        checkoutButton.addActionListener(e -> checkout());
 
+        showMedicines(); // Show initial medicines
+        setLocationRelativeTo(null);
         setVisible(true);
     }
 
     private void showMedicines() {
-        String disease = (String) diseaseBox.getSelectedItem();
-        List<String> medicines = diseaseMedicineMap.get(disease);
-        medicineArea.setText("");
-        for (String med : medicines) {
-            medicineArea.append(med + " - ₹" + medicinePriceMap.get(med) + "\n");
+        String disease = (String) diseaseCombo.getSelectedItem();
+        java.util.List<String> meds = diseaseMedicineMap.getOrDefault(disease, Collections.emptyList());
+        medicineListModel.clear();
+        for (String med : meds) {
+            int price = medicinePriceMap.getOrDefault(med, 0);
+            medicineListModel.addElement(med + " - Rs " + price);
         }
     }
 
     private void addToCart() {
-        String selectedText = medicineArea.getSelectedText();
-        if (selectedText != null) {
-            String medName = selectedText.split(" - ")[0].trim();
-            cart.add(medName);
-            updateCart();
-        } else {
-            JOptionPane.showMessageDialog(this, "Please select a medicine text and then click Add to Cart!");
+        java.util.List<String> selected = medicineList.getSelectedValuesList();
+        if (selected.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please select one or more medicines.");
+            return;
         }
+        for (String item : selected) {
+            String medName = item.split(" - ")[0].trim();
+            cart.add(medName);
+        }
+        updateCart();
     }
 
     private void updateCart() {
-        cartArea.setText("");
+        StringBuilder sb = new StringBuilder();
         int total = 0;
         for (String med : cart) {
-            int price = medicinePriceMap.get(med);
-            cartArea.append(med + " - ₹" + price + "\n");
+            int price = medicinePriceMap.getOrDefault(med, 0);
+            sb.append(med).append(" - Rs ").append(price).append("\n");
             total += price;
         }
-        cartArea.append("\nTotal: ₹" + total);
+        sb.append("\nTotal: Rs ").append(total);
+        cartArea.setText(sb.toString());
     }
 
     private void checkout() {
@@ -122,22 +140,19 @@ public class OnlineMedicalShopping extends JFrame {
             JOptionPane.showMessageDialog(this, "Cart is empty!");
             return;
         }
-        int total = cart.stream().mapToInt(m -> medicinePriceMap.get(m)).sum();
-        JOptionPane.showMessageDialog(this, "✅ Order placed successfully!\nTotal Bill: ₹" + total);
-        cart.clear();
-        updateCart();
+        int total = cart.stream().mapToInt(m -> medicinePriceMap.getOrDefault(m, 0)).sum();
+        int confirm = JOptionPane.showConfirmDialog(this, "Place order? Total: Rs " + total, "Checkout", JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            JOptionPane.showMessageDialog(this, "✅ Order placed successfully!\nTotal Bill: Rs " + total);
+            cart.clear();
+            updateCart();
+        }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(OnlineMedicalShopping::new);
+        SwingUtilities.invokeLater(() -> new OnlineMedicalShopping());
     }
 }
-
-
-
-
-
-
 
 
 

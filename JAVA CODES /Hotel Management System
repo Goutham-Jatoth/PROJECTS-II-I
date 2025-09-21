@@ -1,0 +1,395 @@
+import java.io.*;
+import java.util.*;
+
+class Booking implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    String customerName;
+    String customerPhone;
+    Date checkInDate;
+    Date checkOutDate;
+    double billAmount;
+
+    Booking(String customerName, String customerPhone) {
+        this.customerName = customerName;
+        this.customerPhone = customerPhone;
+        this.checkInDate = new Date();
+        this.billAmount = 0;
+    }
+
+    public void checkout(double bill) {
+        this.checkOutDate = new Date();
+        this.billAmount = bill;
+    }
+
+    @Override
+    public String toString() {
+        return "Customer: " + customerName + " | Phone: " + customerPhone +
+               " | CheckIn: " + checkInDate +
+               (checkOutDate != null ? " | CheckOut: " + checkOutDate + " | Bill: " + billAmount : "");
+    }
+}
+
+class Room implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    int roomNumber;
+    String type;  // Single, Double, Suite
+    double pricePerNight;
+    boolean available;
+    Booking booking;
+
+    Room(int roomNumber, String type, double pricePerNight) {
+        this.roomNumber = roomNumber;
+        this.type = type;
+        this.pricePerNight = pricePerNight;
+        this.available = true;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public void book(String customerName, String customerPhone) {
+        if (available) {
+            booking = new Booking(customerName, customerPhone);
+            available = false;
+            System.out.println("✅ Room " + roomNumber + " booked successfully!");
+        } else {
+            System.out.println("❌ Room is already occupied!");
+        }
+    }
+
+    public void checkout(int daysStayed) {
+        if (!available && booking != null) {
+            double bill = daysStayed * pricePerNight;
+            booking.checkout(bill);
+            available = true;
+            System.out.println("✅ Checkout complete! Bill: " + bill);
+            System.out.println("Booking Details: " + booking);
+            booking = null; // clear booking after checkout
+        } else {
+            System.out.println("❌ Room is not occupied!");
+        }
+    }
+
+    @Override
+    public String toString() {
+        return "Room " + roomNumber + " | Type: " + type + " | Price: " + pricePerNight +
+               " | Available: " + available;
+    }
+}
+
+class Hotel {
+    private Map<Integer, Room> rooms;
+    private static final String FILE_NAME = "hoteldata.ser";
+    private Scanner sc = new Scanner(System.in);
+
+    Hotel() {
+        rooms = loadData();
+    }
+
+    public void addRoom() {
+        System.out.print("Enter Room Number: ");
+        int num = sc.nextInt();
+        if (rooms.containsKey(num)) {
+            System.out.println("❌ Room already exists!");
+            return;
+        }
+        System.out.print("Enter Room Type (Single/Double/Suite): ");
+        String type = sc.next();
+        System.out.print("Enter Price per Night: ");
+        double price = sc.nextDouble();
+
+        Room room = new Room(num, type, price);
+        rooms.put(num, room);
+        saveData();
+        System.out.println("✅ Room added successfully!");
+    }
+
+    public void bookRoom() {
+        System.out.print("Enter Room Number to book: ");
+        int num = sc.nextInt();
+        if (!rooms.containsKey(num)) {
+            System.out.println("❌ Room not found!");
+            return;
+        }
+        Room room = rooms.get(num);
+        if (!room.isAvailable()) {
+            System.out.println("❌ Room already booked!");
+            return;
+        }
+        System.out.print("Enter Customer Name: ");
+        String name = sc.next();
+        System.out.print("Enter Customer Phone: ");
+        String phone = sc.next();
+
+        room.book(name, phone);
+        saveData();
+    }
+
+    public void checkoutRoom() {
+        System.out.print("Enter Room Number to checkout: ");
+        int num = sc.nextInt();
+        if (!rooms.containsKey(num)) {
+            System.out.println("❌ Room not found!");
+            return;
+        }
+        Room room = rooms.get(num);
+        if (room.isAvailable()) {
+            System.out.println("❌ Room is not booked!");
+            return;
+        }
+        System.out.print("Enter Number of Days Stayed: ");
+        int days = sc.nextInt();
+        room.checkout(days);
+        saveData();
+    }
+
+    public void searchRoom() {
+        System.out.print("Enter Room Number to search: ");
+        int num = sc.nextInt();
+        if (rooms.containsKey(num)) {
+            System.out.println("✅ Found: " + rooms.get(num));
+        } else {
+            System.out.println("❌ Room not found!");
+        }
+    }
+
+    public void viewAllRooms() {
+        System.out.println("\n===== All Rooms =====");
+        if (rooms.isEmpty()) {
+            System.out.println("No rooms available in hotel.");
+        } else {
+            for (Room r : rooms.values()) {
+                System.out.println(r);
+            }
+        }
+    }
+
+    public void deleteRoom() {
+        System.out.print("Enter Room Number to delete: ");
+        int num = sc.nextInt();
+        if (rooms.remove(num) != null) {
+            saveData();
+            System.out.println("✅ Room deleted successfully!");
+        } else {
+            System.out.println("❌ Room not found!");
+        }
+    }
+
+    // ---------------- File Handling ----------------
+    private void saveData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oos.writeObject(rooms);
+        } catch (IOException e) {
+            System.out.println("⚠️ Error saving data: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<Integer, Room> loadData() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            return (Map<Integer, Room>) ois.readObject();
+        } catch (FileNotFoundException e) {
+            return new HashMap<>(); // no data yet
+        } catch (Exception e) {
+            System.out.println("⚠️ Error loading data: " + e.getMessage());
+            return new HashMap<>();
+        }
+    }
+}
+
+public class HotelManagementSystem {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        Hotel hotel = new Hotel();
+
+        while (true) {
+            System.out.println("\n===== HOTEL MANAGEMENT SYSTEM =====");
+            System.out.println("1. Add Room");
+            System.out.println("2. Book Room");
+            System.out.println("3. Checkout Room");
+            System.out.println("4. Search Room");
+            System.out.println("5. View All Rooms");
+            System.out.println("6. Delete Room");
+            System.out.println("7. Exit");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    hotel.addRoom();
+                    break;
+                case 2:
+                    hotel.bookRoom();
+                    break;
+                case 3:
+                    hotel.checkoutRoom();
+                    break;
+                case 4:
+                    hotel.searchRoom();
+                    break;
+                case 5:
+                    hotel.viewAllRooms();
+                    break;
+                case 6:
+                    hotel.deleteRoom();
+                    break;
+                case 7:
+                    System.out.println("🚪 Exiting... Thank You!");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("❌ Invalid Choice!");
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
++-------------+
+|   Booking   |
++-------------+
+| customerName|
+| customerPhone|
+| checkInDate |
+| checkOutDate|
+| billAmount  |
++-------------+
+| + checkout()|
+| + toString()|
++-------------+
+
+Room ----------------------> Booking
++-------------+
+|    Room     |
++-------------+
+| roomNumber  |
+| type        |
+| pricePerNight|
+| available   |
+| booking     |
++-------------+
+| + book()    |
+| + checkout()|
+| + toString()|
++-------------+
+
+Hotel ---------------------> Room
++-------------+
+|    Hotel    |
++-------------+
+| rooms: Map  |
+| FILE_NAME   |
++-------------+
+| + addRoom() |
+| + bookRoom()|
+| + checkout()|
+| + search()  |
+| + viewAll() |
+| + delete()  |
++-------------+
+
++-----------------------+
+| HotelManagementSystem |
++-----------------------+
+| + main(args:String[]) |
++-----------------------+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  📑 Mini Project Report – Hotel Management System
+1. Abstract
+
+The Hotel Management System is a Java-based application designed to manage hotel operations such as adding rooms, booking rooms, checking out, and generating bills. Each room has details like room number, type, price per night, and availability. Bookings store customer details and billing information. Data persistence is achieved using file storage so hotel records remain intact after program termination.
+
+2. Objectives
+
+To provide an easy-to-use system for room management in hotels.
+
+To facilitate room booking and checkout operations.
+
+To automate bill calculation based on stay duration.
+
+To ensure data persistence with file storage.
+
+To apply Object-Oriented Programming principles in system design.
+
+3. Features
+
+Add Room with details (number, type, price).
+
+Book Room with customer details.
+
+Checkout Room with automatic bill calculation.
+
+Search Room by room number.
+
+View All Rooms (available & occupied).
+
+Delete Room from hotel records.
+
+File-based Data Storage for persistence.
+
+4. Tools & Technologies Used
+
+Programming Language: Java (JDK 8 or above)
+
+Concepts: OOP (Encapsulation, Abstraction, Composition)
+
+Data Storage: File Serialization (hoteldata.ser)
+
+5. Conclusion
+
+The Hotel Management System project demonstrates how Java OOP concepts can be applied to real-world hotel operations. It provides efficient handling of rooms, bookings, and billing. The use of file storage makes the system practical and reliable. This project is ideal for showcasing problem-solving and programming skills in academic or interview contexts.
+  

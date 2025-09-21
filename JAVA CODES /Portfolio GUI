@@ -1,0 +1,195 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.net.URI;
+
+public class PortfolioGUI extends JFrame {
+
+    private CardLayout cardLayout;
+    private JPanel cardPanel;
+
+    public PortfolioGUI() {
+        setTitle("Goutham Jatoth - Portfolio");
+        setSize(1000, 700);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        // Main panel
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(new Color(20, 20, 20));
+
+        // Top panel with name, subtitle, avatar
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setBackground(new Color(20, 20, 20));
+        topPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+
+        JLabel nameLabel = new JLabel("Goutham Jatoth");
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 36));
+        nameLabel.setForeground(Color.YELLOW);
+
+        JLabel subtitleLabel = new JLabel("Aspiring Software Developer & Data Science Enthusiast");
+        subtitleLabel.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        subtitleLabel.setForeground(Color.WHITE);
+
+        // Use JLabel as spacer instead of Box
+        JPanel textPanel = new JPanel();
+        textPanel.setBackground(new Color(20, 20, 20));
+        textPanel.setLayout(new BoxLayout(textPanel, BoxLayout.Y_AXIS));
+        textPanel.add(nameLabel);
+        textPanel.add(new JLabel(" ")); // spacer
+        textPanel.add(subtitleLabel);
+
+        JLabel avatar = new JLabel(new ImageIcon("avatar.png"));
+        avatar.setPreferredSize(new Dimension(120, 120));
+
+        topPanel.add(avatar, BorderLayout.WEST);
+        topPanel.add(textPanel, BorderLayout.CENTER);
+
+        // Social buttons
+        JPanel socialPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        socialPanel.setBackground(new Color(20, 20, 20));
+        socialPanel.add(createSocialButton("LinkedIn", "https://linkedin.com/in/goutham-jatoth-540200328"));
+        socialPanel.add(createSocialButton("GitHub", "https://github.com/Goutham-Jatoth"));
+        topPanel.add(socialPanel, BorderLayout.SOUTH);
+
+        mainPanel.add(topPanel, BorderLayout.NORTH);
+
+        // Navigation buttons
+        JPanel navPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 20, 10));
+        navPanel.setBackground(new Color(20, 20, 20));
+        String[] sections = {"About", "Skills", "Projects", "Contact"};
+        for (String sec : sections) {
+            JButton btn = new JButton(sec);
+            btn.setFocusPainted(false);
+            btn.setBackground(new Color(40, 40, 80));
+            btn.setForeground(Color.WHITE);
+            btn.addActionListener(e -> cardLayout.show(cardPanel, sec));
+            btn.addMouseListener(new MouseAdapter() {
+                public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(70, 70, 150)); }
+                public void mouseExited(MouseEvent e) { btn.setBackground(new Color(40, 40, 80)); }
+            });
+            navPanel.add(btn);
+        }
+        mainPanel.add(navPanel, BorderLayout.CENTER);
+
+        // Card panel
+        cardLayout = new CardLayout();
+        cardPanel = new JPanel(cardLayout);
+        cardPanel.setBackground(new Color(20, 20, 20));
+
+        cardPanel.add(createAboutSection(), "About");
+        cardPanel.add(createSkillsSection(), "Skills");
+        cardPanel.add(createProjectsSection(), "Projects");
+        cardPanel.add(createContactSection(), "Contact");
+
+        mainPanel.add(cardPanel, BorderLayout.SOUTH);
+
+        add(mainPanel);
+        setVisible(true);
+    }
+
+    private JButton createSocialButton(String name, String url) {
+        JButton btn = new JButton(name);
+        btn.setFocusPainted(false);
+        btn.setBackground(new Color(60, 60, 120));
+        btn.setForeground(Color.WHITE);
+        btn.addActionListener(e -> {
+            try { Desktop.getDesktop().browse(new URI(url)); } catch (Exception ex) { ex.printStackTrace(); }
+        });
+        btn.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) { btn.setBackground(new Color(90, 90, 180)); }
+            public void mouseExited(MouseEvent e) { btn.setBackground(new Color(60, 60, 120)); }
+        });
+        return btn;
+    }
+
+    private JPanel createAboutSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(30, 30, 50));
+        JTextArea area = new JTextArea(
+                "I am Goutham Jatoth, pursuing B.Tech in CSE Data Science at ACE Engineering College.\n" +
+                        "I love coding, building projects, and exploring data-driven technologies."
+        );
+        area.setEditable(false);
+        area.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        area.setForeground(Color.WHITE);
+        area.setBackground(new Color(30, 30, 50));
+        area.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.add(area, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createSkillsSection() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        panel.setBackground(new Color(30, 30, 50));
+        String[] skills = {"C", "C++", "Java", "Python", "NumPy", "Pandas", "PowerBI", "Data Structures"};
+        for (String skill : skills) {
+            panel.add(createCard(skill, "skill_icon.png", new Color(0,128,128)));
+        }
+        JScrollPane scroll = new JScrollPane(panel);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(new Color(30, 30, 50));
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.add(scroll, BorderLayout.CENTER);
+        wrapper.setBackground(new Color(30, 30, 50));
+        return wrapper;
+    }
+
+    private JPanel createProjectsSection() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 15));
+        panel.setBackground(new Color(30, 30, 50));
+        String[] projects = {"Bank App","Chess Game","Face Attendance","Hotel Management",
+                "Library System","Online Medical Shopping","Online Exam System",
+                "E-Commerce App","Election Voting","Seating Arrangement"};
+        for (String proj : projects) {
+            panel.add(createCard(proj, "project_icon.png", new Color(34,139,34)));
+        }
+        JScrollPane scroll = new JScrollPane(panel);
+        scroll.setBorder(null);
+        scroll.getViewport().setBackground(new Color(30, 30, 50));
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.add(scroll, BorderLayout.CENTER);
+        wrapper.setBackground(new Color(30, 30, 50));
+        return wrapper;
+    }
+
+    private JPanel createContactSection() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(30, 30, 50));
+        JTextArea area = new JTextArea(
+                "Email: jatothugoutham7@gmail.com\n" +
+                        "LinkedIn: linkedin.com/in/goutham-jatoth-540200328\n" +
+                        "GitHub: github.com/Goutham-Jatoth"
+        );
+        area.setEditable(false);
+        area.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        area.setForeground(Color.WHITE);
+        area.setBackground(new Color(30, 30, 50));
+        area.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.add(area, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createCard(String title, String iconFile, Color bgColor) {
+        JPanel card = new JPanel(new BorderLayout());
+        card.setPreferredSize(new Dimension(150, 150));
+        card.setBackground(bgColor);
+        card.setBorder(BorderFactory.createEmptyBorder(10,10,10,10));
+        JLabel icon = new JLabel(new ImageIcon(iconFile));
+        icon.setHorizontalAlignment(SwingConstants.CENTER);
+        JLabel lbl = new JLabel(title, SwingConstants.CENTER);
+        lbl.setForeground(Color.WHITE);
+        lbl.setFont(new Font("SansSerif", Font.BOLD,16));
+        card.add(icon, BorderLayout.CENTER);
+        card.add(lbl, BorderLayout.SOUTH);
+        card.addMouseListener(new MouseAdapter() {
+            public void mouseEntered(MouseEvent e) { card.setBackground(bgColor.brighter()); }
+            public void mouseExited(MouseEvent e) { card.setBackground(bgColor); }
+        });
+        return card;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(PortfolioGUI::new);
+    }
+}

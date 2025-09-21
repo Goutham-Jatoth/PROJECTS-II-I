@@ -1,0 +1,108 @@
+#include <stdio.h>
+#include <stdbool.h>
+
+#define N 9
+
+// Define a struct for the Sudoku puzzle
+typedef struct {
+    int grid[N][N];
+} Sudoku;
+
+// Function prototypes
+void printSudoku(Sudoku *s);
+bool isSafe(Sudoku *s, int row, int col, int num);
+bool solveSudoku(Sudoku *s);
+void inputSudoku(Sudoku *s);
+
+int main() {
+    Sudoku s;
+
+    printf("Enter the Sudoku puzzle (use 0 for empty cells):\n");
+    inputSudoku(&s);
+
+    if (solveSudoku(&s)) {
+        printf("\nSolved Sudoku:\n");
+        printSudoku(&s);
+    } else {
+        printf("\nNo solution exists for the given Sudoku.\n");
+    }
+
+    return 0;
+}
+
+// Function to input the Sudoku grid
+void inputSudoku(Sudoku *s) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            scanf("%d", &(s->grid[i][j]));
+        }
+    }
+}
+
+// Function to print the Sudoku grid
+void printSudoku(Sudoku *s) {
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            printf("%d ", s->grid[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+// Function to check if a number can be placed in a given cell
+bool isSafe(Sudoku *s, int row, int col, int num) {
+    // Check row
+    for (int x = 0; x < N; x++) {
+        if (s->grid[row][x] == num) return false;
+    }
+
+    // Check column
+    for (int x = 0; x < N; x++) {
+        if (s->grid[x][col] == num) return false;
+    }
+
+    // Check 3x3 subgrid
+    int startRow = row - row % 3;
+    int startCol = col - col % 3;
+
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            if (s->grid[startRow + i][startCol + j] == num) return false;
+        }
+    }
+
+    return true;
+}
+
+// Function to solve Sudoku using backtracking
+bool solveSudoku(Sudoku *s) {
+    int row, col;
+    bool empty = false;
+
+    // Find an empty cell
+    for (row = 0; row < N; row++) {
+        for (col = 0; col < N; col++) {
+            if (s->grid[row][col] == 0) {
+                empty = true;
+                break;
+            }
+        }
+        if (empty) break;
+    }
+
+    // No empty cell left, puzzle solved
+    if (!empty) return true;
+
+    // Try numbers 1-9 in empty cell
+    for (int num = 1; num <= 9; num++) {
+        if (isSafe(s, row, col, num)) {
+            s->grid[row][col] = num;
+
+            if (solveSudoku(s)) return true;
+
+            s->grid[row][col] = 0;  // Backtrack
+        }
+    }
+
+    return false;  // Trigger backtracking
+}

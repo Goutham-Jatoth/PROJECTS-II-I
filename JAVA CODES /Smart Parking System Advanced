@@ -1,0 +1,295 @@
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
+public class SmartParkingSystemAdvanced extends JFrame {
+
+    private Map<Integer, ParkingSlot> parkingSlots; // slotNumber → ParkingSlot
+    private DefaultListModel<String> slotListModel;
+    private JList<String> slotList;
+    private JTextField vehicleNumberField;
+    private JButton parkButton, removeButton, refreshButton;
+    private final String DATA_FILE = "parking_data.txt";
+
+    public SmartParkingSystemAdvanced() {
+        initData();
+        initUI();
+    }
+
+    private void initData() {
+        parkingSlots = new LinkedHashMap<>();
+        for (int i = 1; i <= 10; i++) {
+            parkingSlots.put(i, null);
+        }
+        loadData();
+    }
+
+    private void initUI() {
+        setTitle("🅿️ Smart Parking System (Advanced)");
+        setSize(700, 450);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+
+        // Top panel
+        JPanel topPanel = new JPanel();
+        topPanel.add(new JLabel("Vehicle Number:"));
+        vehicleNumberField = new JTextField(10);
+        topPanel.add(vehicleNumberField);
+        parkButton = new JButton("Park Vehicle");
+        removeButton = new JButton("Remove Vehicle");
+        topPanel.add(parkButton);
+        topPanel.add(removeButton);
+        add(topPanel, BorderLayout.NORTH);
+
+        // Center panel
+        slotListModel = new DefaultListModel<>();
+        slotList = new JList<>(slotListModel);
+        slotList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        JScrollPane scrollPane = new JScrollPane(slotList);
+        scrollPane.setBorder(BorderFactory.createTitledBorder("Parking Slots Status"));
+        add(scrollPane, BorderLayout.CENTER);
+
+        // Bottom panel
+        JPanel bottomPanel = new JPanel();
+        refreshButton = new JButton("Refresh Status");
+        bottomPanel.add(refreshButton);
+        add(bottomPanel, BorderLayout.SOUTH);
+
+        // Actions
+        parkButton.addActionListener(e -> parkVehicle());
+        removeButton.addActionListener(e -> removeVehicle());
+        refreshButton.addActionListener(e -> updateSlotList());
+
+        updateSlotList();
+        setLocationRelativeTo(null);
+        setVisible(true);
+    }
+
+    private void parkVehicle() {
+        String vehicleNum = vehicleNumberField.getText().trim();
+        if (vehicleNum.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please enter vehicle number.");
+            return;
+        }
+
+        boolean parked = false;
+        for (int i = 1; i <= parkingSlots.size(); i++) {
+            if (parkingSlots.get(i) == null) {
+                parkingSlots.put(i, new ParkingSlot(vehicleNum, LocalDateTime.now()));
+                JOptionPane.showMessageDialog(this, "Vehicle parked in slot " + i);
+                parked = true;
+                saveData();
+                break;
+            }
+        }
+
+        if (!parked) {
+            JOptionPane.showMessageDialog(this, "Sorry, parking full!");
+        }
+
+        vehicleNumberField.setText("");
+        updateSlotList();
+    }
+
+    private void removeVehicle() {
+        int selectedIndex = slotList.getSelectedIndex();
+        if (selectedIndex == -1) {
+            JOptionPane.showMessageDialog(this, "Select a slot from the list first.");
+            return;
+        }
+
+        int slotNumber = selectedIndex + 1;
+        ParkingSlot slot = parkingSlots.get(slotNumber);
+
+        if (slot != null) {
+            LocalDateTime exitTime = LocalDateTime.now();
+            long hours = Math.max(1, java.time.Duration.between(slot.entryTime, exitTime).toHours());
+            int fee = (int) (hours * 10); // ₹10 per hour
+            JOptionPane.showMessageDialog(this, "Vehicle " + slot.vehicleNumber + " removed from slot " + slotNumber +
+                    "\nParking Duration: " + hours + " hours\nFee: Rs " + fee);
+            parkingSlots.put(slotNumber, null);
+            saveData();
+        } else {
+            JOptionPane.showMessageDialog(this, "Slot " + slotNumber + " is already empty.");
+        }
+
+        updateSlotList();
+    }
+
+    private void updateSlotList() {
+        slotListModel.clear();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm:ss");
+        for (int i = 1; i <= parkingSlots.size(); i++) {
+            ParkingSlot slot = parkingSlots.get(i);
+            if (slot == null) {
+                slotListModel.addElement("Slot " + i + ": Empty");
+            } else {
+                String time = slot.entryTime.format(formatter);
+                slotListModel.addElement("Slot " + i + ": " + slot.vehicleNumber + " (In: " + time + ")");
+            }
+        }
+    }
+
+    // Save parking data to file
+    private void saveData() {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(DATA_FILE))) {
+            for (int i = 1; i <= parkingSlots.size(); i++) {
+                ParkingSlot slot = parkingSlots.get(i);
+                if (slot != null) {
+                    pw.println(i + "," + slot.vehicleNumber + "," + slot.entryTime.toString());
+                }
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(this, "Error saving data: " + e.getMessage());
+        }
+    }
+
+    // Load parking data from file
+    private void loadData() {
+        File file = new File(DATA_FILE);
+        if (!file.exists()) return;
+        try (Scanner sc = new Scanner(file)) {
+            while (sc.hasNextLine()) {
+                String[] parts = sc.nextLine().split(",");
+                int slotNum = Integer.parseInt(parts[0]);
+                String vehicleNum = parts[1];
+                LocalDateTime entryTime = LocalDateTime.parse(parts[2]);
+                parkingSlots.put(slotNum, new ParkingSlot(vehicleNum, entryTime));
+            }
+        } catch (IOException | NumberFormatException e) {
+            JOptionPane.showMessageDialog(this, "Error loading data: " + e.getMessage());
+        }
+    }
+
+    private static class ParkingSlot {
+        String vehicleNumber;
+        LocalDateTime entryTime;
+
+        ParkingSlot(String vehicleNumber, LocalDateTime entryTime) {
+            this.vehicleNumber = vehicleNumber;
+            this.entryTime = entryTime;
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new SmartParkingSystemAdvanced());
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Perfect! I can prepare a complete submission-ready mini-project PDF report for your Smart Parking System (Advanced Version). Here’s what it will include:
+
+📄 Smart Parking System – Mini Project Report Contents
+1. Cover Page
+
+Project Title: Smart Parking System (Advanced Version)
+
+Your Name / Roll Number / College / Department
+
+Date / Semester
+
+2. Abstract
+
+Short description of the project.
+
+Objective: Manage parking slots efficiently using a GUI-based system.
+
+Features: Track vehicles, calculate parking fee, persist data, real-time slot status.
+
+3. Objectives
+
+Automate parking management.
+
+Track entry and exit times.
+
+Calculate parking fees based on duration.
+
+Maintain persistent records of vehicles.
+
+4. Tools & Technologies
+
+Programming Language: Java (JDK 8 or above)
+
+GUI Library: Swing
+
+File Handling: Text file (parking_data.txt) for persistence
+
+OOP Concepts: Classes, Objects, Maps, Lists
+
+5. System Features
+
+Park Vehicle: Enter vehicle number → assign first available slot.
+
+Remove Vehicle: Free slot and calculate parking fee.
+
+View Parking Status: See all slots with vehicle info and entry time.
+
+Persistent Storage: Saves and loads data automatically.
+
+Fee Calculation: ₹10/hour automatically computed.
+
+6. System Architecture / Flow Diagram
+
+Diagram showing:
+Vehicle Entry → Check Slot Availability → Assign Slot → Update Status → Exit → Fee Calculation → Update File
+
+7. GUI Screenshots
+
+Main interface
+
+Vehicle parked
+
+Vehicle removed
+
+Parking status
+
+8. Code Explanation
+
+Class structure: SmartParkingSystemAdvanced and inner class ParkingSlot
+
+Key functions: parkVehicle(), removeVehicle(), updateSlotList(), saveData(), loadData()
+
+Data structures: Map<Integer, ParkingSlot>
+
+File handling for persistence
+
+9. Sample Output
+
+Parking a vehicle in slot 1
+
+Parking a second vehicle in slot 2
+
+Removing a vehicle → showing fee calculation
+
+Parking full scenario
+
+10. Conclusion
+
+Fully functional GUI-based parking system.
+
+Demonstrates OOP, file handling, date/time operations, and Swing GUI.
+
+Suitable as a mini-project submission.

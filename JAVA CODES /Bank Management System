@@ -1,0 +1,650 @@
+import java.util.*;
+
+class Transaction {
+    String type;
+    double amount;
+    Date date;
+
+    Transaction(String type, double amount) {
+        this.type = type;
+        this.amount = amount;
+        this.date = new Date();
+    }
+
+    @Override
+    public String toString() {
+        return date + " | " + type + " | " + amount;
+    }
+}
+
+class Account {
+    private String accountId;
+    private String name;
+    private int pin;
+    private double balance;
+    private List<Transaction> transactions;
+
+    Account(String accountId, String name, int pin, double initialDeposit) {
+        this.accountId = accountId;
+        this.name = name;
+        this.pin = pin;
+        this.balance = initialDeposit;
+        this.transactions = new ArrayList<>();
+        transactions.add(new Transaction("Initial Deposit", initialDeposit));
+    }
+
+    public String getAccountId() {
+        return accountId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public boolean authenticate(int enteredPin) {
+        return this.pin == enteredPin;
+    }
+
+    public void changePin(int newPin) {
+        this.pin = newPin;
+    }
+
+    public void deposit(double amount) {
+        balance += amount;
+        transactions.add(new Transaction("Credit", amount));
+        System.out.println("✅ Amount credited successfully!");
+    }
+
+    public void withdraw(double amount) {
+        if (amount <= balance) {
+            balance -= amount;
+            transactions.add(new Transaction("Debit", amount));
+            System.out.println("✅ Amount debited successfully!");
+        } else {
+            System.out.println("❌ Insufficient Balance!");
+        }
+    }
+
+    public void checkBalance() {
+        System.out.println("💰 Current Balance: " + balance);
+    }
+
+    public void printMiniStatement() {
+        System.out.println("\n📜 Mini Statement (Last 5 Transactions):");
+        int start = Math.max(transactions.size() - 5, 0);
+        for (int i = start; i < transactions.size(); i++) {
+            System.out.println(transactions.get(i));
+        }
+    }
+}
+
+class Bank {
+    private Map<String, Account> accounts = new HashMap<>();
+    private Scanner sc = new Scanner(System.in);
+
+    public void createAccount() {
+        System.out.print("Enter Account ID: ");
+        String id = sc.next();
+        if (accounts.containsKey(id)) {
+            System.out.println("❌ Account ID already exists!");
+            return;
+        }
+
+        System.out.print("Enter Name: ");
+        String name = sc.next();
+
+        System.out.print("Set 4-digit PIN: ");
+        int pin = sc.nextInt();
+
+        System.out.print("Enter Initial Deposit: ");
+        double deposit = sc.nextDouble();
+
+        Account acc = new Account(id, name, pin, deposit);
+        accounts.put(id, acc);
+        System.out.println("✅ Account Created Successfully!");
+    }
+
+    public void login() {
+        System.out.print("Enter Account ID: ");
+        String id = sc.next();
+
+        if (!accounts.containsKey(id)) {
+            System.out.println("❌ Account Not Found!");
+            return;
+        }
+
+        System.out.print("Enter PIN: ");
+        int pin = sc.nextInt();
+
+        Account acc = accounts.get(id);
+        if (!acc.authenticate(pin)) {
+            System.out.println("❌ Invalid PIN!");
+            return;
+        }
+
+        System.out.println("✅ Login Successful! Welcome " + acc.getName());
+        accountMenu(acc);
+    }
+
+    private void accountMenu(Account acc) {
+        while (true) {
+            System.out.println("\n===== Account Menu =====");
+            System.out.println("1. Deposit");
+            System.out.println("2. Withdraw");
+            System.out.println("3. Balance Check");
+            System.out.println("4. Mini Statement");
+            System.out.println("5. Change PIN");
+            System.out.println("6. Logout");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter Amount to Deposit: ");
+                    acc.deposit(sc.nextDouble());
+                    break;
+                case 2:
+                    System.out.print("Enter Amount to Withdraw: ");
+                    acc.withdraw(sc.nextDouble());
+                    break;
+                case 3:
+                    acc.checkBalance();
+                    break;
+                case 4:
+                    acc.printMiniStatement();
+                    break;
+                case 5:
+                    System.out.print("Enter New PIN: ");
+                    acc.changePin(sc.nextInt());
+                    System.out.println("✅ PIN Changed Successfully!");
+                    break;
+                case 6:
+                    System.out.println("🔒 Logged Out!");
+                    return;
+                default:
+                    System.out.println("❌ Invalid Choice!");
+            }
+        }
+    }
+
+    public void deleteAccount() {
+        System.out.print("Enter Account ID to delete: ");
+        String id = sc.next();
+        if (accounts.remove(id) != null) {
+            System.out.println("✅ Account Deleted Successfully!");
+        } else {
+            System.out.println("❌ Account Not Found!");
+        }
+    }
+
+    public void searchAccount() {
+        System.out.print("Enter Account ID to search: ");
+        String id = sc.next();
+        if (accounts.containsKey(id)) {
+            Account acc = accounts.get(id);
+            System.out.println("✅ Account Found: " + acc.getAccountId() + " | " + acc.getName());
+        } else {
+            System.out.println("❌ Account Not Found!");
+        }
+    }
+}
+
+public class BankManagementSystem {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        Bank bank = new Bank();
+
+        while (true) {
+            System.out.println("\n===== BANK MANAGEMENT SYSTEM =====");
+            System.out.println("1. Create Account");
+            System.out.println("2. Login");
+            System.out.println("3. Search Account");
+            System.out.println("4. Delete Account");
+            System.out.println("5. Exit");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    bank.createAccount();
+                    break;
+                case 2:
+                    bank.login();
+                    break;
+                case 3:
+                    bank.searchAccount();
+                    break;
+                case 4:
+                    bank.deleteAccount();
+                    break;
+                case 5:
+                    System.out.println("🚪 Exiting... Thank You!");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("❌ Invalid Choice!");
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Inside the code, we logically have 3 main classes:
+
+Transaction
+
+Represents a single transaction (credit/debit/initial deposit).
+
+Attributes: type, amount, date.
+
+Methods: toString()
+
+Account
+
+Represents a bank account.
+
+Attributes: accountId, name, pin, balance, transactions (list).
+
+Methods: deposit(), withdraw(), checkBalance(),
+printMiniStatement(), changePin(), authenticate()
+
+Bank
+
+Represents the bank system managing multiple accounts.
+
+Attributes: Map<String, Account> accounts
+
+Methods: createAccount(), login(), deleteAccount(),
+searchAccount(), accountMenu()
+
+BankManagementSystem (Main)
+
+Entry point with main() method.
+
+Displays menu and calls Bank methods.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
++---------------------+
+|     Transaction     |
++---------------------+
+| - type: String      |
+| - amount: double    |
+| - date: Date        |
++---------------------+
+| + Transaction(...)  |
+| + toString(): String|
++---------------------+
+
+                1..* 
+Account ----------------------> Transaction
++-----------------------------+
+|          Account            |
++-----------------------------+
+| - accountId: String         |
+| - name: String              |
+| - pin: int                  |
+| - balance: double           |
+| - transactions: List        |
++-----------------------------+
+| + Account(...)              |
+| + authenticate(pin:int):boolean |
+| + deposit(amount:double)    |
+| + withdraw(amount:double)   |
+| + checkBalance()            |
+| + printMiniStatement()      |
+| + changePin(newPin:int)     |
++-----------------------------+
+
+Bank ----------------------> Account
++---------------------------+
+|          Bank             |
++---------------------------+
+| - accounts: Map<String,Account> |
+| - sc: Scanner             |
++---------------------------+
+| + createAccount()         |
+| + login()                 |
+| + deleteAccount()         |
+| + searchAccount()         |
+| - accountMenu(Account)    |
++---------------------------+
+
++---------------------------+
+|  BankManagementSystem     |
++---------------------------+
+| + main(args:String[])     |
++---------------------------+
+
+
+
+
+
+
+
+
+
+
+📝 Explanation (for interviews / submission)
+
+Transaction class is a simple POJO (Plain Old Java Object) that records every action on an account.
+
+Account class handles all user operations (deposit, withdraw, balance check, mini statement, authentication).
+
+Bank class acts as a controller to manage multiple accounts (create, login, delete, search).
+
+BankManagementSystem (main) is the driver that gives the menu-driven console interface.
+
+This separation shows Object-Oriented Programming principles:
+
+Encapsulation → Account data is private and accessed via methods.
+
+Abstraction → Users interact through simple menus, hiding internal logic.
+
+Composition → Bank has Accounts, and Accounts have Transactions.
+
+Modularity → Code is separated into clear classes.
+
+
+
+
+
+
+import java.io.*;
+import java.util.*;
+
+class Transaction implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    String type;
+    double amount;
+    Date date;
+
+    Transaction(String type, double amount) {
+        this.type = type;
+        this.amount = amount;
+        this.date = new Date();
+    }
+
+    @Override
+    public String toString() {
+        return date + " | " + type + " | " + amount;
+    }
+}
+
+class Account implements Serializable {
+    private static final long serialVersionUID = 1L;
+
+    private String accountId;
+    private String name;
+    private int pin;
+    private double balance;
+    private List<Transaction> transactions;
+
+    Account(String accountId, String name, int pin, double initialDeposit) {
+        this.accountId = accountId;
+        this.name = name;
+        this.pin = pin;
+        this.balance = initialDeposit;
+        this.transactions = new ArrayList<>();
+        transactions.add(new Transaction("Initial Deposit", initialDeposit));
+    }
+
+    public String getAccountId() {
+        return accountId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public boolean authenticate(int enteredPin) {
+        return this.pin == enteredPin;
+    }
+
+    public void changePin(int newPin) {
+        this.pin = newPin;
+    }
+
+    public void deposit(double amount) {
+        balance += amount;
+        transactions.add(new Transaction("Credit", amount));
+        System.out.println("✅ Amount credited successfully!");
+    }
+
+    public void withdraw(double amount) {
+        if (amount <= balance) {
+            balance -= amount;
+            transactions.add(new Transaction("Debit", amount));
+            System.out.println("✅ Amount debited successfully!");
+        } else {
+            System.out.println("❌ Insufficient Balance!");
+        }
+    }
+
+    public void checkBalance() {
+        System.out.println("💰 Current Balance: " + balance);
+    }
+
+    public void printMiniStatement() {
+        System.out.println("\n📜 Mini Statement (Last 5 Transactions):");
+        int start = Math.max(transactions.size() - 5, 0);
+        for (int i = start; i < transactions.size(); i++) {
+            System.out.println(transactions.get(i));
+        }
+    }
+}
+
+class Bank {
+    private Map<String, Account> accounts;
+    private Scanner sc = new Scanner(System.in);
+    private static final String FILE_NAME = "bankdata.ser";
+
+    Bank() {
+        accounts = loadData();
+    }
+
+    public void createAccount() {
+        System.out.print("Enter Account ID: ");
+        String id = sc.next();
+        if (accounts.containsKey(id)) {
+            System.out.println("❌ Account ID already exists!");
+            return;
+        }
+
+        System.out.print("Enter Name: ");
+        String name = sc.next();
+
+        System.out.print("Set 4-digit PIN: ");
+        int pin = sc.nextInt();
+
+        System.out.print("Enter Initial Deposit: ");
+        double deposit = sc.nextDouble();
+
+        Account acc = new Account(id, name, pin, deposit);
+        accounts.put(id, acc);
+        saveData();
+        System.out.println("✅ Account Created Successfully!");
+    }
+
+    public void login() {
+        System.out.print("Enter Account ID: ");
+        String id = sc.next();
+
+        if (!accounts.containsKey(id)) {
+            System.out.println("❌ Account Not Found!");
+            return;
+        }
+
+        System.out.print("Enter PIN: ");
+        int pin = sc.nextInt();
+
+        Account acc = accounts.get(id);
+        if (!acc.authenticate(pin)) {
+            System.out.println("❌ Invalid PIN!");
+            return;
+        }
+
+        System.out.println("✅ Login Successful! Welcome " + acc.getName());
+        accountMenu(acc);
+    }
+
+    private void accountMenu(Account acc) {
+        while (true) {
+            System.out.println("\n===== Account Menu =====");
+            System.out.println("1. Deposit");
+            System.out.println("2. Withdraw");
+            System.out.println("3. Balance Check");
+            System.out.println("4. Mini Statement");
+            System.out.println("5. Change PIN");
+            System.out.println("6. Logout");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter Amount to Deposit: ");
+                    acc.deposit(sc.nextDouble());
+                    saveData();
+                    break;
+                case 2:
+                    System.out.print("Enter Amount to Withdraw: ");
+                    acc.withdraw(sc.nextDouble());
+                    saveData();
+                    break;
+                case 3:
+                    acc.checkBalance();
+                    break;
+                case 4:
+                    acc.printMiniStatement();
+                    break;
+                case 5:
+                    System.out.print("Enter New PIN: ");
+                    acc.changePin(sc.nextInt());
+                    saveData();
+                    System.out.println("✅ PIN Changed Successfully!");
+                    break;
+                case 6:
+                    System.out.println("🔒 Logged Out!");
+                    return;
+                default:
+                    System.out.println("❌ Invalid Choice!");
+            }
+        }
+    }
+
+    public void deleteAccount() {
+        System.out.print("Enter Account ID to delete: ");
+        String id = sc.next();
+        if (accounts.remove(id) != null) {
+            saveData();
+            System.out.println("✅ Account Deleted Successfully!");
+        } else {
+            System.out.println("❌ Account Not Found!");
+        }
+    }
+
+    public void searchAccount() {
+        System.out.print("Enter Account ID to search: ");
+        String id = sc.next();
+        if (accounts.containsKey(id)) {
+            Account acc = accounts.get(id);
+            System.out.println("✅ Account Found: " + acc.getAccountId() + " | " + acc.getName());
+        } else {
+            System.out.println("❌ Account Not Found!");
+        }
+    }
+
+    // ---------------- File Handling ----------------
+    private void saveData() {
+        try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(FILE_NAME))) {
+            oos.writeObject(accounts);
+        } catch (IOException e) {
+            System.out.println("⚠️ Error saving data: " + e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Account> loadData() {
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(FILE_NAME))) {
+            return (Map<String, Account>) ois.readObject();
+        } catch (FileNotFoundException e) {
+            return new HashMap<>(); // First run: no file yet
+        } catch (Exception e) {
+            System.out.println("⚠️ Error loading data: " + e.getMessage());
+            return new HashMap<>();
+        }
+    }
+}
+
+public class BankManagementSystem {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        Bank bank = new Bank();
+
+        while (true) {
+            System.out.println("\n===== BANK MANAGEMENT SYSTEM =====");
+            System.out.println("1. Create Account");
+            System.out.println("2. Login");
+            System.out.println("3. Search Account");
+            System.out.println("4. Delete Account");
+            System.out.println("5. Exit");
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+
+            switch (choice) {
+                case 1:
+                    bank.createAccount();
+                    break;
+                case 2:
+                    bank.login();
+                    break;
+                case 3:
+                    bank.searchAccount();
+                    break;
+                case 4:
+                    bank.deleteAccount();
+                    break;
+                case 5:
+                    System.out.println("🚪 Exiting... Thank You!");
+                    sc.close();
+                    return;
+                default:
+                    System.out.println("❌ Invalid Choice!");
+            }
+        }
+    }
+}

@@ -1,0 +1,504 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+struct Account {
+    int acc_no;
+    char name[50];
+    float balance;
+    struct Account *next;
+};
+
+struct Account *head = NULL;
+
+// Function Prototypes
+void createAccount();
+void displayAccounts();
+void deposit();
+void withdraw();
+void searchAccount();
+void deleteAccount();
+void saveToFile();
+void loadFromFile();
+
+int main() {
+    int choice;
+    loadFromFile();
+
+    while (1) {
+        printf("\n\n====== BANK MANAGEMENT SYSTEM ======\n");
+        printf("1. Create New Account\n");
+        printf("2. Deposit Money\n");
+        printf("3. Withdraw Money\n");
+        printf("4. Search Account\n");
+        printf("5. Display All Accounts\n");
+        printf("6. Delete Account\n");
+        printf("7. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1: createAccount(); break;
+            case 2: deposit(); break;
+            case 3: withdraw(); break;
+            case 4: searchAccount(); break;
+            case 5: displayAccounts(); break;
+            case 6: deleteAccount(); break;
+            case 7:
+                saveToFile();
+                printf("\nData saved successfully! Exiting...\n");
+                exit(0);
+            default:
+                printf("Invalid choice! Try again.\n");
+        }
+    }
+    return 0;
+}
+
+// Create new account
+void createAccount() {
+    struct Account *newAcc, *temp;
+    newAcc = (struct Account*)malloc(sizeof(struct Account));
+
+    printf("\nEnter Account Number: ");
+    scanf("%d", &newAcc->acc_no);
+    printf("Enter Name: ");
+    getchar();
+    gets(newAcc->name);
+    printf("Enter Initial Deposit: ");
+    scanf("%f", &newAcc->balance);
+
+    newAcc->next = NULL;
+
+    if (head == NULL)
+        head = newAcc;
+    else {
+        temp = head;
+        while (temp->next != NULL)
+            temp = temp->next;
+        temp->next = newAcc;
+    }
+
+    printf("\n✅ Account created successfully!\n");
+    saveToFile();
+}
+
+// Display all accounts
+void displayAccounts() {
+    struct Account *temp = head;
+    if (temp == NULL) {
+        printf("\nNo accounts available!\n");
+        return;
+    }
+
+    printf("\n--------------------------------------------\n");
+    printf("ACC NO\tNAME\t\tBALANCE\n");
+    printf("--------------------------------------------\n");
+
+    while (temp != NULL) {
+        printf("%d\t%-15s\t%.2f\n", temp->acc_no, temp->name, temp->balance);
+        temp = temp->next;
+    }
+    printf("--------------------------------------------\n");
+}
+
+// Deposit amount
+void deposit() {
+    int acc;
+    float amt;
+    struct Account *temp = head;
+
+    printf("\nEnter Account Number: ");
+    scanf("%d", &acc);
+    printf("Enter Amount to Deposit: ");
+    scanf("%f", &amt);
+
+    while (temp != NULL) {
+        if (temp->acc_no == acc) {
+            temp->balance += amt;
+            printf("\n✅ Amount Deposited Successfully! New Balance: %.2f\n", temp->balance);
+            saveToFile();
+            return;
+        }
+        temp = temp->next;
+    }
+    printf("\n❌ Account not found!\n");
+}
+
+// Withdraw amount
+void withdraw() {
+    int acc;
+    float amt;
+    struct Account *temp = head;
+
+    printf("\nEnter Account Number: ");
+    scanf("%d", &acc);
+    printf("Enter Amount to Withdraw: ");
+    scanf("%f", &amt);
+
+    while (temp != NULL) {
+        if (temp->acc_no == acc) {
+            if (temp->balance >= amt) {
+                temp->balance -= amt;
+                printf("\n✅ Withdrawal Successful! Remaining Balance: %.2f\n", temp->balance);
+                saveToFile();
+            } else {
+                printf("\n❌ Insufficient Balance!\n");
+            }
+            return;
+        }
+        temp = temp->next;
+    }
+    printf("\n❌ Account not found!\n");
+}
+
+// Search an account
+void searchAccount() {
+    int acc;
+    struct Account *temp = head;
+
+    printf("\nEnter Account Number to Search: ");
+    scanf("%d", &acc);
+
+    while (temp != NULL) {
+        if (temp->acc_no == acc) {
+            printf("\nAccount Found!\n");
+            printf("Account Number: %d\n", temp->acc_no);
+            printf("Name: %s\n", temp->name);
+            printf("Balance: %.2f\n", temp->balance);
+            return;
+        }
+        temp = temp->next;
+    }
+    printf("\n❌ Account not found!\n");
+}
+
+// Delete account
+void deleteAccount() {
+    int acc;
+    struct Account *temp = head, *prev = NULL;
+
+    printf("\nEnter Account Number to Delete: ");
+    scanf("%d", &acc);
+
+    while (temp != NULL) {
+        if (temp->acc_no == acc) {
+            if (prev == NULL)
+                head = temp->next;
+            else
+                prev->next = temp->next;
+
+            free(temp);
+            printf("\n✅ Account deleted successfully!\n");
+            saveToFile();
+            return;
+        }
+        prev = temp;
+        temp = temp->next;
+    }
+    printf("\n❌ Account not found!\n");
+}
+
+// Save data to file
+void saveToFile() {
+    FILE *fp = fopen("bankdata.dat", "wb");
+    struct Account *temp = head;
+
+    if (fp == NULL) {
+        printf("\nError saving file!\n");
+        return;
+    }
+
+    while (temp != NULL) {
+        fwrite(temp, sizeof(struct Account), 1, fp);
+        temp = temp->next;
+    }
+    fclose(fp);
+}
+
+// Load data from file
+void loadFromFile() {
+    FILE *fp = fopen("bankdata.dat", "rb");
+    struct Account tempAcc;
+
+    if (fp == NULL)
+        return;
+
+    while (fread(&tempAcc, sizeof(struct Account), 1, fp)) {
+        struct Account *newAcc = (struct Account*)malloc(sizeof(struct Account));
+        *newAcc = tempAcc;
+        newAcc->next = NULL;
+
+        if (head == NULL)
+            head = newAcc;
+        else {
+            struct Account *t = head;
+            while (t->next != NULL)
+                t = t->next;
+            t->next = newAcc;
+        }
+    }
+    fclose(fp);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+🧾 LAB MANUAL / MINI PROJECT REPORT
+📘 Project Title:
+
+Bank Management System using C and Data Structures
+
+🧩 1. Aim / Objective
+
+To design and implement a Bank Management System using C language and Data Structures that manages customer accounts, performs deposit and withdrawal operations, and maintains data persistently using files.
+
+🧠 2. Problem Definition
+
+Banks need efficient systems to manage multiple accounts, track balances, and handle transactions.
+Manual systems are slow and prone to errors.
+Hence, this project aims to develop a menu-driven digital bank system with:
+
+Account creation and deletion
+
+Deposit and withdrawal transactions
+
+Account search and listing
+
+Permanent data storage using file handling
+
+⚙️ 3. Tools and Technologies Used
+Component	Description
+Language	C
+Data Structures	Linked List
+Compiler	GCC / Turbo C
+IDE	Code::Blocks / Dev-C++ / VS Code
+OS	Windows / Linux
+File Handling	Binary File (.dat)
+🧩 4. Data Structures Used
+a) Account Structure
+struct Account {
+    int acc_no;
+    char name[50];
+    float balance;
+    struct Account *next;
+};
+
+
+Explanation:
+Each account stores the account number, customer name, and current balance.
+A linked list connects all accounts dynamically.
+
+📊 5. UML Diagrams
+🧍‍♂️ a) Use Case Diagram
+          +------------------+
+          |      Admin       |
+          +------------------+
+            /   |   |   |   \
+           /    |   |   |    \
+ [Create] [Deposit] [Withdraw] [Search] [Delete]
+           \    |   |   |    /
+            \   |   |   |   /
+          [Display All Accounts]
+
+
+Actors:
+
+Admin / Bank Officer:
+Can create, update, delete, search, and view account information.
+
+🧱 b) Class Diagram (C equivalent)
++----------------------------+
+|          Account           |
++----------------------------+
+| acc_no : int               |
+| name : char[50]            |
+| balance : float            |
+| next : *Account            |
++----------------------------+
+| createAccount()            |
+| deposit()                  |
+| withdraw()                 |
+| searchAccount()            |
+| deleteAccount()            |
+| displayAccounts()          |
+| saveToFile()               |
+| loadFromFile()             |
++----------------------------+
+
+
+Relationship:
+Account nodes are connected in a Linked List (One-to-Many Relationship).
+
+⚙️ c) Activity Diagram
+       ┌──────────────────────────┐
+       │        START              │
+       └────────────┬──────────────┘
+                    ↓
+           Admin selects option
+                    ↓
+         ┌──────────┴──────────┐
+         │                     │
+     [Create]              [Existing]
+         │                     │
+   Enter details         Select operation
+         │                     │
+ ┌───────┼────────┬────────────┼────────┬─────────────┐
+ │Deposit│Withdraw│Search Acc. │Display │Delete Account│
+ └───────┼────────┴────────────┼────────┴─────────────┘
+                    ↓
+             Update Linked List
+                    ↓
+             Save Data to File
+                    ↓
+                  END
+
+⏱️ d) Sequence Diagram
+Admin → System : Login()
+Admin → System : CreateAccount()
+System → File : SaveToFile()
+
+Admin → System : Deposit(amount)
+System → Account : UpdateBalance()
+System → File : SaveToFile()
+
+Admin → System : Withdraw(amount)
+System → Account : DeductBalance()
+System → File : SaveToFile()
+
+Admin → System : DisplayAccounts()
+System → Admin : Show Details
+
+🧮 6. Algorithm Examples
+🔹 a) Create Account
+
+Start
+
+Accept account number, name, and initial balance
+
+Create a new node using malloc()
+
+Insert node at end of linked list
+
+Save updated data to file
+
+Stop
+
+🔹 b) Deposit
+
+Start
+
+Enter account number and amount
+
+Traverse linked list to find account
+
+Add amount to balance
+
+Save updated data
+
+Stop
+
+🔹 c) Withdraw
+
+Start
+
+Enter account number and amount
+
+Check sufficient balance
+
+Deduct amount from balance
+
+Save data to file
+
+Stop
+
+🔹 d) Delete Account
+
+Start
+
+Input account number
+
+Traverse linked list
+
+Remove node from list
+
+Save updated list to file
+
+Stop
+
+🧱 7. Functional Modules
+Module	Functionality
+Create Account	Adds a new account
+Deposit	Adds money to an account
+Withdraw	Deducts money from an account
+Search Account	Finds account details by number
+Display Accounts	Lists all accounts
+Delete Account	Removes an account permanently
+File Handling	Saves and loads data persistently
+💾 8. File Handling
+
+File Name: bankdata.dat
+
+Mode: Binary file (wb / rb)
+
+Purpose: Save and restore account details permanently
+
+Sample stored data (conceptually):
+
+Acc No | Name       | Balance
+101    | Goutham    | 6500
+102    | Rajesh     | 4200
+
+🧩 9. Sample Input / Output
+Input:
+====== BANK MANAGEMENT SYSTEM ======
+1. Create New Account
+2. Deposit Money
+3. Withdraw Money
+4. Search Account
+5. Display All Accounts
+6. Delete Account
+7. Exit
+Enter your choice: 1
+
+Enter Account Number: 101
+Enter Name: Goutham
+Enter Initial Deposit: 5000
+✅ Account created successfully!
+
+Output:
+ACC NO   NAME           BALANCE
+--------------------------------
+101      Goutham        5000.00
+
+📈 10. Result
+
+The program successfully simulates a banking system with account management, transaction updates, and persistent file storage.
+It efficiently uses Linked Lists and File Handling, fulfilling all required objectives of a data structure–based project.
+
+🧾 11. Conclusion
+
+The Bank Management System demonstrates how linked lists and structures in C can be applied to real-world applications.
+By integrating file handling, it ensures data persistence across sessions.
+The modular design allows easy scalability and future enhancements.
+
+🚀 12. Future Enhancements
+
+Add user login & PIN authentication
+
+Maintain transaction history logs
+
+Integrate interest calculation on deposits
+
+Add sorting and searching (BST or hashing) for faster access
+
+Implement a GUI using C/GTK or Python frontend

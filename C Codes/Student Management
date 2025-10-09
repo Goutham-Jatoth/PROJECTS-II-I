@@ -1,0 +1,826 @@
+Save the code below as library_system.c. Compile with:
+
+
+
+
+gcc -std=c99 -o library_system library_system.c
+./library_system
+
+
+
+
+
+
+
+
+/*
+ * library_system.c
+ * Library Management System using Data Structures (linked lists) in C
+ *
+ * Features:
+ *  - Book add / edit / delete / list / search
+ *  - Member add / edit / delete / list / search
+ *  - Issue / Return books with simple loan tracking
+ *  - File persistence: books.dat, members.dat, loans.dat
+ *
+ * Compile: gcc -std=c99 -o library_system library_system.c
+ * Author: ChatGPT (example educational project)
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#define BOOKS_FILE "books.dat"
+#define MEMBERS_FILE "members.dat"
+#define LOANS_FILE "loans.dat"
+#define MAX_STR 128
+
+/* ---------- Data structures ---------- */
+
+typedef struct Book {
+    int id;
+    char title[MAX_STR];
+    char author[MAX_STR];
+    int year;
+    int copies_total;
+    int copies_available;
+    struct Book *next;
+} Book;
+
+typedef struct Member {
+    int id;
+    char name[MAX_STR];
+    char email[MAX_STR];
+    char phone[MAX_STR];
+    struct Member *next;
+} Member;
+
+typedef struct Loan {
+    int loan_id;
+    int book_id;
+    int member_id;
+    char issue_date[20];   // simple date string
+    char return_date[20];  // empty if not returned
+    struct Loan *next;
+} Loan;
+
+/* ---------- Utility prototypes ---------- */
+
+int next_book_id(Book *head);
+int next_member_id(Member *head);
+int next_loan_id(Loan *head);
+char *today_str(char *buf, size_t sz);
+void pause_and_clear();
+
+/* ---------- CRUD and linked-list functions prototypes ---------- */
+
+/* Book functions */
+Book* load_books();
+void save_books(Book *head);
+Book* create_book_node(int id, const char *title, const char *author, int year, int copies);
+void add_book(Book **head);
+void edit_book(Book *head);
+void delete_book(Book **head, Loan *loan_head);
+Book* find_book_by_id(Book *head, int id);
+void list_books(Book *head);
+void search_books(Book *head);
+
+/* Member functions */
+Member* load_members();
+void save_members(Member *head);
+Member* create_member_node(int id, const char *name, const char *email, const char *phone);
+void add_member(Member **head);
+void edit_member(Member *head);
+void delete_member(Member **head, Loan *loan_head);
+Member* find_member_by_id(Member *head, int id);
+void list_members(Member *head);
+void search_members(Member *head);
+
+/* Loan functions */
+Loan* load_loans();
+void save_loans(Loan *head);
+Loan* create_loan_node(int loan_id, int book_id, int member_id, const char *issue_date);
+void issue_book(Book *book_head, Member *member_head, Loan **loan_head);
+void return_book(Book *book_head, Loan *loan_head);
+void list_loans(Loan *head);
+void list_loans_by_member(Loan *head, Member *member_head);
+
+/* Sorting */
+void sort_books_by_title(Book **head);
+Book* merge_sorted_by_title(Book* a, Book* b);
+void split_list(Book* source, Book** frontRef, Book** backRef);
+
+/* Cleanup */
+void free_books(Book *head);
+void free_members(Member *head);
+void free_loans(Loan *head);
+
+/* ---------- Main UI ---------- */
+
+void print_main_menu() {
+    printf("\n=== Library Management System ===\n");
+    printf("1. Book Management\n");
+    printf("2. Member Management\n");
+    printf("3. Issue / Return\n");
+    printf("4. Reports / Lists\n");
+    printf("5. Save & Exit\n");
+    printf("Choose option: ");
+}
+
+void print_book_menu() {
+    printf("\n--- Book Management ---\n");
+    printf("1. Add Book\n");
+    printf("2. Edit Book\n");
+    printf("3. Delete Book\n");
+    printf("4. List Books\n");
+    printf("5. Search Books\n");
+    printf("6. Sort Books by Title\n");
+    printf("0. Back\n");
+    printf("Choose option: ");
+}
+
+void print_member_menu() {
+    printf("\n--- Member Management ---\n");
+    printf("1. Add Member\n");
+    printf("2. Edit Member\n");
+    printf("3. Delete Member\n");
+    printf("4. List Members\n");
+    printf("5. Search Members\n");
+    printf("0. Back\n");
+}
+
+void print_issue_menu() {
+    printf("\n--- Issue / Return ---\n");
+    printf("1. Issue Book\n");
+    printf("2. Return Book\n");
+    printf("3. List Loans\n");
+    printf("4. List Loans by Member\n");
+    printf("0. Back\n");
+}
+
+void print_reports_menu() {
+    printf("\n--- Reports / Lists ---\n");
+    printf("1. List Books\n");
+    printf("2. List Members\n");
+    printf("3. List Loans\n");
+    printf("0. Back\n");
+}
+
+int main() {
+    Book *books = load_books();
+    Member *members = load_members();
+    Loan *loans = load_loans();
+
+    int choice = -1;
+    while (1) {
+        print_main_menu();
+        if (scanf("%d", &choice) != 1) { // simple input guard
+            while (getchar() != '\n');
+            choice = -1;
+        }
+        switch (choice) {
+            case 1: { // Book Management
+                int ch;
+                while (1) {
+                    print_book_menu();
+                    if (scanf("%d", &ch) != 1) { while (getchar() != '\n'); ch = -1; }
+                    switch (ch) {
+                        case 1: add_book(&books); break;
+                        case 2: edit_book(books); break;
+                        case 3: delete_book(&books, loans); break;
+                        case 4: list_books(books); break;
+                        case 5: search_books(books); break;
+                        case 6: sort_books_by_title(&books); printf("Books sorted by title.\n"); break;
+                        case 0: goto end_books_menu;
+                        default: printf("Invalid.\n");
+                    }
+                }
+                end_books_menu:
+                break;
+            }
+            case 2: { // Member Management
+                int ch;
+                while (1) {
+                    print_member_menu();
+                    if (scanf("%d", &ch) != 1) { while (getchar() != '\n'); ch = -1; }
+                    switch (ch) {
+                        case 1: add_member(&members); break;
+                        case 2: edit_member(members); break;
+                        case 3: delete_member(&members, loans); break;
+                        case 4: list_members(members); break;
+                        case 5: search_members(members); break;
+                        case 0: goto end_member_menu;
+                        default: printf("Invalid.\n");
+                    }
+                }
+                end_member_menu:
+                break;
+            }
+            case 3: {
+                int ch;
+                while (1) {
+                    print_issue_menu();
+                    if (scanf("%d", &ch) != 1) { while (getchar() != '\n'); ch = -1; }
+                    switch (ch) {
+                        case 1: issue_book(books, members, &loans); break;
+                        case 2: return_book(books, loans); break;
+                        case 3: list_loans(loans); break;
+                        case 4: list_loans_by_member(loans, members); break;
+                        case 0: goto end_issue_menu;
+                        default: printf("Invalid.\n");
+                    }
+                }
+                end_issue_menu:
+                break;
+            }
+            case 4: {
+                int ch;
+                while (1) {
+                    print_reports_menu();
+                    if (scanf("%d", &ch) != 1) { while (getchar() != '\n'); ch = -1; }
+                    switch (ch) {
+                        case 1: list_books(books); break;
+                        case 2: list_members(members); break;
+                        case 3: list_loans(loans); break;
+                        case 0: goto end_reports_menu;
+                        default: printf("Invalid.\n");
+                    }
+                }
+                end_reports_menu:
+                break;
+            }
+            case 5:
+                save_books(books);
+                save_members(members);
+                save_loans(loans);
+                printf("Saved. Exiting...\n");
+                free_books(books);
+                free_members(members);
+                free_loans(loans);
+                exit(0);
+            default:
+                printf("Invalid option.\n");
+        }
+    }
+
+    return 0;
+}
+
+/* ---------- Utility implementations ---------- */
+
+char *today_str(char *buf, size_t sz) {
+    time_t t = time(NULL);
+    struct tm *tm = localtime(&t);
+    strftime(buf, sz, "%Y-%m-%d", tm);
+    return buf;
+}
+
+int next_book_id(Book *head) {
+    int max = 0;
+    while (head) {
+        if (head->id > max) max = head->id;
+        head = head->next;
+    }
+    return max + 1;
+}
+
+int next_member_id(Member *head) {
+    int max = 0;
+    while (head) {
+        if (head->id > max) max = head->id;
+        head = head->next;
+    }
+    return max + 1;
+}
+
+int next_loan_id(Loan *head) {
+    int max = 0;
+    while (head) {
+        if (head->loan_id > max) max = head->loan_id;
+        head = head->next;
+    }
+    return max + 1;
+}
+
+void pause_and_clear() {
+    printf("\nPress ENTER to continue...");
+    while (getchar() != '\n');
+    getchar();
+}
+
+/* ---------- Book functions ---------- */
+
+Book* create_book_node(int id, const char *title, const char *author, int year, int copies) {
+    Book *b = (Book*)malloc(sizeof(Book));
+    if (!b) { perror("malloc"); exit(1); }
+    b->id = id;
+    strncpy(b->title, title, MAX_STR-1); b->title[MAX_STR-1] = '\0';
+    strncpy(b->author, author, MAX_STR-1); b->author[MAX_STR-1] = '\0';
+    b->year = year;
+    b->copies_total = copies;
+    b->copies_available = copies;
+    b->next = NULL;
+    return b;
+}
+
+Book* load_books() {
+    FILE *f = fopen(BOOKS_FILE, "rb");
+    Book *head = NULL, *tail = NULL;
+    if (!f) return NULL;
+    while (1) {
+        Book tmp;
+        if (fread(&tmp, sizeof(Book), 1, f) != 1) break;
+        Book *n = create_book_node(tmp.id, tmp.title, tmp.author, tmp.year, tmp.copies_total);
+        n->copies_available = tmp.copies_available;
+        if (!head) head = tail = n; else { tail->next = n; tail = n; }
+    }
+    fclose(f);
+    return head;
+}
+
+void save_books(Book *head) {
+    FILE *f = fopen(BOOKS_FILE, "wb");
+    if (!f) { perror("fopen"); return; }
+    Book *cur = head;
+    while (cur) {
+        // write fixed-size struct-like data (but avoid pointer)
+        Book tmp = *cur;
+        tmp.next = NULL;
+        fwrite(&tmp, sizeof(Book), 1, f);
+        cur = cur->next;
+    }
+    fclose(f);
+}
+
+void add_book(Book **head) {
+    char title[MAX_STR], author[MAX_STR];
+    int year, copies;
+    while (getchar() != '\n');
+    printf("Title: "); fgets(title, MAX_STR, stdin); title[strcspn(title, "\n")] = 0;
+    printf("Author: "); fgets(author, MAX_STR, stdin); author[strcspn(author, "\n")] = 0;
+    printf("Year: "); if (scanf("%d", &year) != 1) { printf("Invalid year.\n"); return; }
+    printf("Copies: "); if (scanf("%d", &copies) != 1) { printf("Invalid copies.\n"); return; }
+    int id = next_book_id(*head);
+    Book *n = create_book_node(id, title, author, year, copies);
+    // Insert at head for simplicity
+    n->next = *head;
+    *head = n;
+    printf("Book added with ID %d\n", id);
+}
+
+Book* find_book_by_id(Book *head, int id) {
+    while (head) {
+        if (head->id == id) return head;
+        head = head->next;
+    }
+    return NULL;
+}
+
+void edit_book(Book *head) {
+    int id;
+    printf("Enter Book ID to edit: "); if (scanf("%d", &id) != 1) { printf("Invalid.\n"); return; }
+    Book *b = find_book_by_id(head, id);
+    if (!b) { printf("Not found.\n"); return; }
+    while (getchar() != '\n');
+    char tmp[MAX_STR];
+    printf("Title (%s): ", b->title); fgets(tmp, MAX_STR, stdin); if (tmp[0] != '\n') { tmp[strcspn(tmp, "\n")] = 0; strncpy(b->title, tmp, MAX_STR-1); }
+    printf("Author (%s): ", b->author); fgets(tmp, MAX_STR, stdin); if (tmp[0] != '\n') { tmp[strcspn(tmp, "\n")] = 0; strncpy(b->author, tmp, MAX_STR-1); }
+    printf("Year (%d): ", b->year); if (scanf("%d", &b->year) != 1) { while (getchar() != '\n'); printf("Kept old.\n"); }
+    printf("Total Copies (%d): ", b->copies_total); int copies; if (scanf("%d", &copies) == 1) { int diff = copies - b->copies_total; b->copies_total = copies; b->copies_available += diff; if (b->copies_available < 0) b->copies_available = 0; }
+    printf("Book updated.\n");
+}
+
+void delete_book(Book **head, Loan *loan_head) {
+    int id;
+    printf("Enter Book ID to delete: "); if (scanf("%d", &id) != 1) { printf("Invalid.\n"); return; }
+    // Check if on loan
+    Loan *l = loan_head;
+    while (l) {
+        if (l->book_id == id && strlen(l->return_date) == 0) {
+            printf("Cannot delete: Book is currently issued (loan id %d).\n", l->loan_id);
+            return;
+        }
+        l = l->next;
+    }
+    Book *cur = *head, *prev = NULL;
+    while (cur) {
+        if (cur->id == id) {
+            if (prev) prev->next = cur->next; else *head = cur->next;
+            free(cur);
+            printf("Deleted book %d\n", id);
+            return;
+        }
+        prev = cur; cur = cur->next;
+    }
+    printf("Book not found.\n");
+}
+
+void list_books(Book *head) {
+    printf("\n--- Books List ---\n");
+    if (!head) { printf("No books found.\n"); return; }
+    printf("%-5s %-30s %-20s %-6s %-7s\n", "ID", "Title", "Author", "Year", "Avail/Total");
+    while (head) {
+        printf("%-5d %-30s %-20s %-6d %d/%d\n", head->id, head->title, head->author, head->year, head->copies_available, head->copies_total);
+        head = head->next;
+    }
+}
+
+void search_books(Book *head) {
+    int opt;
+    printf("\nSearch by: 1) ID 2) Title 3) Author. Choose: ");
+    if (scanf("%d", &opt) != 1) return;
+    if (opt == 1) {
+        int id; printf("Enter ID: "); if (scanf("%d", &id) != 1) return;
+        Book *b = find_book_by_id(head, id);
+        if (!b) printf("Not found.\n"); else printf("Found: %d - %s by %s (%d) Avail %d/%d\n", b->id, b->title, b->author, b->year, b->copies_available, b->copies_total);
+    } else if (opt == 2 || opt == 3) {
+        char q[MAX_STR];
+        while (getchar() != '\n');
+        printf("Enter search query: "); fgets(q, MAX_STR, stdin); q[strcspn(q, "\n")] = 0;
+        Book *cur = head; int found = 0;
+        while (cur) {
+            if ((opt==2 && strcasestr(cur->title, q)) || (opt==3 && strcasestr(cur->author, q))) {
+                printf("Found: %d - %s by %s (%d) Avail %d/%d\n", cur->id, cur->title, cur->author, cur->year, cur->copies_available, cur->copies_total);
+                found = 1;
+            }
+            cur = cur->next;
+        }
+        if (!found) printf("No matches.\n");
+    } else printf("Invalid.\n");
+}
+
+/* Case-insensitive substring search using POSIX strcasestr if available; if not, implement */
+#ifndef _GNU_SOURCE
+char *strcasestr(const char *haystack, const char *needle) {
+    if (!*needle) return (char*)haystack;
+    for (; *haystack; haystack++) {
+        const char *h = haystack, *n = needle;
+        while (*h && *n && tolower((unsigned char)*h) == tolower((unsigned char)*n)) { h++; n++; }
+        if (!*n) return (char*)haystack;
+    }
+    return NULL;
+}
+#endif
+
+/* ---------- Member functions ---------- */
+
+Member* create_member_node(int id, const char *name, const char *email, const char *phone) {
+    Member *m = (Member*)malloc(sizeof(Member));
+    if (!m) { perror("malloc"); exit(1); }
+    m->id = id;
+    strncpy(m->name, name, MAX_STR-1); m->name[MAX_STR-1] = '\0';
+    strncpy(m->email, email, MAX_STR-1); m->email[MAX_STR-1] = '\0';
+    strncpy(m->phone, phone, MAX_STR-1); m->phone[MAX_STR-1] = '\0';
+    m->next = NULL;
+    return m;
+}
+
+Member* load_members() {
+    FILE *f = fopen(MEMBERS_FILE, "rb");
+    Member *head = NULL, *tail = NULL;
+    if (!f) return NULL;
+    while (1) {
+        Member tmp;
+        if (fread(&tmp, sizeof(Member), 1, f) != 1) break;
+        Member *n = create_member_node(tmp.id, tmp.name, tmp.email, tmp.phone);
+        if (!head) head = tail = n; else { tail->next = n; tail = n; }
+    }
+    fclose(f);
+    return head;
+}
+
+void save_members(Member *head) {
+    FILE *f = fopen(MEMBERS_FILE, "wb");
+    if (!f) { perror("fopen"); return; }
+    Member *cur = head;
+    while (cur) {
+        Member tmp = *cur;
+        tmp.next = NULL;
+        fwrite(&tmp, sizeof(Member), 1, f);
+        cur = cur->next;
+    }
+    fclose(f);
+}
+
+void add_member(Member **head) {
+    char name[MAX_STR], email[MAX_STR], phone[MAX_STR];
+    while (getchar() != '\n');
+    printf("Name: "); fgets(name, MAX_STR, stdin); name[strcspn(name, "\n")] = 0;
+    printf("Email: "); fgets(email, MAX_STR, stdin); email[strcspn(email, "\n")] = 0;
+    printf("Phone: "); fgets(phone, MAX_STR, stdin); phone[strcspn(phone, "\n")] = 0;
+    int id = next_member_id(*head);
+    Member *m = create_member_node(id, name, email, phone);
+    m->next = *head;
+    *head = m;
+    printf("Member added with ID %d\n", id);
+}
+
+Member* find_member_by_id(Member *head, int id) {
+    while (head) {
+        if (head->id == id) return head;
+        head = head->next;
+    }
+    return NULL;
+}
+
+void edit_member(Member *head) {
+    int id;
+    printf("Enter Member ID to edit: "); if (scanf("%d", &id) != 1) { printf("Invalid.\n"); return; }
+    Member *m = find_member_by_id(head, id);
+    if (!m) { printf("Not found.\n"); return; }
+    while (getchar() != '\n');
+    char tmp[MAX_STR];
+    printf("Name (%s): ", m->name); fgets(tmp, MAX_STR, stdin); if (tmp[0] != '\n') { tmp[strcspn(tmp, "\n")] = 0; strncpy(m->name, tmp, MAX_STR-1); }
+    printf("Email (%s): ", m->email); fgets(tmp, MAX_STR, stdin); if (tmp[0] != '\n') { tmp[strcspn(tmp, "\n")] = 0; strncpy(m->email, tmp, MAX_STR-1); }
+    printf("Phone (%s): ", m->phone); fgets(tmp, MAX_STR, stdin); if (tmp[0] != '\n') { tmp[strcspn(tmp, "\n")] = 0; strncpy(m->phone, tmp, MAX_STR-1); }
+    printf("Member updated.\n");
+}
+
+void delete_member(Member **head, Loan *loan_head) {
+    int id;
+    printf("Enter Member ID to delete: "); if (scanf("%d", &id) != 1) { printf("Invalid.\n"); return; }
+    // Check loans
+    Loan *l = loan_head;
+    while (l) {
+        if (l->member_id == id && strlen(l->return_date) == 0) {
+            printf("Cannot delete: Member has active loan (loan id %d).\n", l->loan_id);
+            return;
+        }
+        l = l->next;
+    }
+    Member *cur = *head, *prev = NULL;
+    while (cur) {
+        if (cur->id == id) {
+            if (prev) prev->next = cur->next; else *head = cur->next;
+            free(cur);
+            printf("Deleted member %d\n", id);
+            return;
+        }
+        prev = cur; cur = cur->next;
+    }
+    printf("Member not found.\n");
+}
+
+void list_members(Member *head) {
+    printf("\n--- Members List ---\n");
+    if (!head) { printf("No members.\n"); return; }
+    printf("%-5s %-25s %-25s %-15s\n", "ID", "Name", "Email", "Phone");
+    while (head) {
+        printf("%-5d %-25s %-25s %-15s\n", head->id, head->name, head->email, head->phone);
+        head = head->next;
+    }
+}
+
+void search_members(Member *head) {
+    int opt;
+    printf("\nSearch by: 1) ID 2) Name. Choose: ");
+    if (scanf("%d", &opt) != 1) return;
+    if (opt == 1) {
+        int id; printf("Enter ID: "); if (scanf("%d", &id) != 1) return;
+        Member *m = find_member_by_id(head, id);
+        if (!m) printf("Not found.\n"); else printf("Found: %d - %s, %s, %s\n", m->id, m->name, m->email, m->phone);
+    } else if (opt == 2) {
+        char q[MAX_STR];
+        while (getchar() != '\n');
+        printf("Enter search query: "); fgets(q, MAX_STR, stdin); q[strcspn(q, "\n")] = 0;
+        Member *cur = head; int found = 0;
+        while (cur) {
+            if (strcasestr(cur->name, q)) {
+                printf("Found: %d - %s, %s, %s\n", cur->id, cur->name, cur->email, cur->phone);
+                found = 1;
+            }
+            cur = cur->next;
+        }
+        if (!found) printf("No matches.\n");
+    } else printf("Invalid.\n");
+}
+
+/* ---------- Loan functions ---------- */
+
+Loan* create_loan_node(int loan_id, int book_id, int member_id, const char *issue_date) {
+    Loan *l = (Loan*)malloc(sizeof(Loan));
+    if (!l) { perror("malloc"); exit(1); }
+    l->loan_id = loan_id;
+    l->book_id = book_id;
+    l->member_id = member_id;
+    strncpy(l->issue_date, issue_date, sizeof(l->issue_date)-1); l->issue_date[sizeof(l->issue_date)-1] = '\0';
+    l->return_date[0] = '\0';
+    l->next = NULL;
+    return l;
+}
+
+Loan* load_loans() {
+    FILE *f = fopen(LOANS_FILE, "rb");
+    Loan *head = NULL, *tail = NULL;
+    if (!f) return NULL;
+    while (1) {
+        Loan tmp;
+        if (fread(&tmp, sizeof(Loan), 1, f) != 1) break;
+        Loan *n = (Loan*)malloc(sizeof(Loan));
+        if (!n) { perror("malloc"); exit(1); }
+        *n = tmp;
+        n->next = NULL;
+        if (!head) head = tail = n; else { tail->next = n; tail = n; }
+    }
+    fclose(f);
+    return head;
+}
+
+void save_loans(Loan *head) {
+    FILE *f = fopen(LOANS_FILE, "wb");
+    if (!f) { perror("fopen"); return; }
+    Loan *cur = head;
+    while (cur) {
+        Loan tmp = *cur;
+        tmp.next = NULL;
+        fwrite(&tmp, sizeof(Loan), 1, f);
+        cur = cur->next;
+    }
+    fclose(f);
+}
+
+void issue_book(Book *book_head, Member *member_head, Loan **loan_head) {
+    int book_id, member_id;
+    printf("Enter Book ID to issue: "); if (scanf("%d", &book_id) != 1) { printf("Invalid.\n"); return; }
+    Book *b = find_book_by_id(book_head, book_id);
+    if (!b) { printf("Book not found.\n"); return; }
+    if (b->copies_available <= 0) { printf("No copies available.\n"); return; }
+    printf("Enter Member ID: "); if (scanf("%d", &member_id) != 1) { printf("Invalid.\n"); return; }
+    Member *m = find_member_by_id(member_head, member_id);
+    if (!m) { printf("Member not found.\n"); return; }
+    int lid = next_loan_id(*loan_head);
+    char datebuf[20]; today_str(datebuf, sizeof(datebuf));
+    Loan *l = create_loan_node(lid, book_id, member_id, datebuf);
+    l->next = *loan_head; *loan_head = l;
+    b->copies_available--;
+    printf("Issued book %d to member %d. Loan ID %d. Date: %s\n", book_id, member_id, lid, datebuf);
+}
+
+void return_book(Book *book_head, Loan *loan_head) {
+    int loan_id;
+    printf("Enter Loan ID to return: "); if (scanf("%d", &loan_id) != 1) { printf("Invalid.\n"); return; }
+    Loan *l = loan_head;
+    while (l) {
+        if (l->loan_id == loan_id) break;
+        l = l->next;
+    }
+    if (!l) { printf("Loan not found.\n"); return; }
+    if (strlen(l->return_date) != 0) { printf("Already returned on %s\n", l->return_date); return; }
+    char datebuf[20]; today_str(datebuf, sizeof(datebuf));
+    strncpy(l->return_date, datebuf, sizeof(l->return_date)-1);
+    Book *b = find_book_by_id(book_head, l->book_id);
+    if (b) b->copies_available++;
+    printf("Returned. Loan %d closed on %s\n", loan_id, datebuf);
+}
+
+void list_loans(Loan *head) {
+    printf("\n--- Loans List ---\n");
+    if (!head) { printf("No loans.\n"); return; }
+    printf("%-6s %-6s %-8s %-12s %-12s\n", "LoanID", "BookID", "MemberID", "Issued", "Returned");
+    while (head) {
+        printf("%-6d %-6d %-8d %-12s %-12s\n", head->loan_id, head->book_id, head->member_id, head->issue_date,
+               (strlen(head->return_date) ? head->return_date : "Not returned"));
+        head = head->next;
+    }
+}
+
+void list_loans_by_member(Loan *head, Member *member_head) {
+    int member_id;
+    printf("Enter Member ID: "); if (scanf("%d", &member_id) != 1) { printf("Invalid.\n"); return; }
+    Member *m = find_member_by_id(member_head, member_id);
+    if (!m) { printf("Member not found.\n"); return; }
+    printf("Loans for %s (ID %d):\n", m->name, m->id);
+    int found = 0;
+    while (head) {
+        if (head->member_id == member_id) {
+            printf("Loan %d - Book %d - Issued %s - %s\n", head->loan_id, head->book_id, head->issue_date,
+                   (strlen(head->return_date) ? head->return_date : "Not returned"));
+            found = 1;
+        }
+        head = head->next;
+    }
+    if (!found) printf("No loans for this member.\n");
+}
+
+/* ---------- Sorting (merge sort by title) ---------- */
+
+void split_list(Book* source, Book** frontRef, Book** backRef) {
+    Book* fast;
+    Book* slow;
+    slow = source;
+    fast = source->next;
+
+    while (fast != NULL) {
+        fast = fast->next;
+        if (fast != NULL) {
+            slow = slow->next;
+            fast = fast->next;
+        }
+    }
+
+    *frontRef = source;
+    *backRef = slow->next;
+    slow->next = NULL;
+}
+
+Book* merge_sorted_by_title(Book* a, Book* b) {
+    Book* result = NULL;
+
+    if (a == NULL) return b;
+    else if (b == NULL) return a;
+
+    if (strcasecmp(a->title, b->title) <= 0) {
+        result = a;
+        result->next = merge_sorted_by_title(a->next, b);
+    } else {
+        result = b;
+        result->next = merge_sorted_by_title(a, b->next);
+    }
+    return result;
+}
+
+void sort_books_by_title(Book **headRef) {
+    Book *head = *headRef;
+    if ((head == NULL) || (head->next == NULL)) return;
+    Book *a, *b;
+    split_list(head, &a, &b);
+    sort_books_by_title(&a);
+    sort_books_by_title(&b);
+    *headRef = merge_sorted_by_title(a, b);
+}
+
+/* ---------- Free lists ---------- */
+
+void free_books(Book *head) {
+    while (head) { Book *t = head; head = head->next; free(t); }
+}
+void free_members(Member *head) {
+    while (head) { Member *t = head; head = head->next; free(t); }
+}
+void free_loans(Loan *head) {
+    while (head) { Loan *t = head; head = head->next; free(t); }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Library Management System — Modular C Project + Lab Manual + New Features
+
+This document includes:
+
+Modular C source code (separate .h/.c files) for a Library Management System using linked lists and file persistence.
+
+New features added: Admin login, due-date & overdue fines, CSV export, and improved CLI.
+
+Lab Manual (UML diagrams in Mermaid, Use Case, Flowchart, Test cases, Sample data, Compilation & run instructions).
+
+Files included
+
+main.c — program entry & CLI
+
+book.h / book.c — book data structure and operations
+
+member.h / member.c — member data structure and operations
+
+loan.h / loan.c — loan data structure, issue/return, overdue fine
+
+storage.h / storage.c — save/load and CSV export helpers
+
+utils.h / utils.c — small helpers (dates, input)
+
+How to compile
+
+Save files into a single folder. Compile with:
+
+gcc -std=c99 -O2 -Wall -o library main.c book.c member.c loan.c storage.c utils.c
+
+Run:
+
+./library
+Quick features summary
+
+Add/Edit/Delete/List/Search Books & Members
+
+Issue & Return with due date (default loan = 14 days)
+
+On return, compute overdue days and fine (default fine = 5 currency units per day)
+
+Admin login required for add/delete operations (username: admin, password: lib@123) — you can change in utils.c
+
+Save/Load to binary files and optional CSV export commands

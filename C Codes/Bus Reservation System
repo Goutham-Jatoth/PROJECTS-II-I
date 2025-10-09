@@ -1,0 +1,640 @@
+gcc -std=c99 -o bus_reservation bus_reservation.c
+./bus_reservation
+
+
+
+
+
+
+
+
+/*
+ * Bus Reservation System in C (single-file)
+ * Features:
+ *  - Linked list of buses
+ *  - Each bus has seats (array) and passenger info
+ *  - Add/Delete bus, Book/Cancel seat, View bus/seats, Save/Load to file
+ *
+ * Author: ChatGPT (example)
+ * Compile with: gcc -std=c99 -o bus_reservation bus_reservation.c
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MAX_SEATS 40
+#define MAX_NAME 50
+#define MAX_ROUTE 100
+#define FILENAME "buses.dat"
+
+typedef struct {
+    char name[MAX_NAME];
+    int age;
+    char gender[10];
+    int booked; // 0 = free, 1 = booked
+} Passenger;
+
+typedef struct Bus {
+    int bus_id;
+    char driver[MAX_NAME];
+    char route[MAX_ROUTE];
+    char date[20]; // simple date string: dd-mm-yyyy or yyyy-mm-dd
+    int total_seats;
+    Passenger seats[MAX_SEATS]; // seats indexed 0..total_seats-1
+    struct Bus *next;
+} Bus;
+
+/* Head of linked list of buses */
+Bus *head = NULL;
+
+/* Utility: read a line of input (trim newline) */
+void read_line(char *buffer, int size) {
+    if (fgets(buffer, size, stdin)) {
+        size_t ln = strlen(buffer);
+        if (ln > 0 && buffer[ln - 1] == '\n') buffer[ln - 1] = '\0';
+    }
+}
+
+/* Create a new Bus node with initialized seats */
+Bus *create_bus(int bus_id, const char *driver, const char *route, const char *date, int seats_count) {
+    if (seats_count < 1 || seats_count > MAX_SEATS) return NULL;
+    Bus *b = (Bus *)malloc(sizeof(Bus));
+    if (!b) {
+        perror("Failed to allocate memory for new bus");
+        exit(EXIT_FAILURE);
+    }
+    b->bus_id = bus_id;
+    strncpy(b->driver, driver, MAX_NAME-1); b->driver[MAX_NAME-1] = '\0';
+    strncpy(b->route, route, MAX_ROUTE-1); b->route[MAX_ROUTE-1] = '\0';
+    strncpy(b->date, date, sizeof(b->date)-1); b->date[sizeof(b->date)-1] = '\0';
+    b->total_seats = seats_count;
+    for (int i = 0; i < MAX_SEATS; ++i) {
+        b->seats[i].booked = 0;
+        b->seats[i].name[0] = '\0';
+        b->seats[i].age = 0;
+        b->seats[i].gender[0] = '\0';
+    }
+    b->next = NULL;
+    return b;
+}
+
+/* Add bus to linked list (at end) */
+void add_bus(Bus *newbus) {
+    if (!newbus) return;
+    if (!head) {
+        head = newbus;
+    } else {
+        Bus *p = head;
+        while (p->next) p = p->next;
+        p->next = newbus;
+    }
+}
+
+/* Find a bus by ID */
+Bus *find_bus(int bus_id) {
+    Bus *p = head;
+    while (p) {
+        if (p->bus_id == bus_id) return p;
+        p = p->next;
+    }
+    return NULL;
+}
+
+/* Remove bus by ID */
+int remove_bus(int bus_id) {
+    Bus *p = head, *prev = NULL;
+    while (p) {
+        if (p->bus_id == bus_id) {
+            if (prev) prev->next = p->next;
+            else head = p->next;
+            free(p);
+            return 1; // removed
+        }
+        prev = p;
+        p = p->next;
+    }
+    return 0; // not found
+}
+
+/* Display brief list of buses */
+void list_buses() {
+    Bus *p = head;
+    if (!p) {
+        puts("\nNo buses available.\n");
+        return;
+    }
+    puts("\nAvailable Buses:");
+    printf("%-8s %-20s %-20s %-12s %-6s\n", "BusID", "Driver", "Route", "Date", "Seats");
+    puts("-------------------------------------------------------------------------------");
+    while (p) {
+        printf("%-8d %-20s %-20s %-12s %-6d\n", p->bus_id, p->driver, p->route, p->date, p->total_seats);
+        p = p->next;
+    }
+    putchar('\n');
+}
+
+/* Display bus details and seat status */
+void display_bus_details(Bus *b) {
+    if (!b) {
+        puts("Bus not found.");
+        return;
+    }
+    printf("\nBus ID: %d\nDriver: %s\nRoute : %s\nDate  : %s\nSeats : %d\n",
+           b->bus_id, b->driver, b->route, b->date, b->total_seats);
+    puts("\nSeat status (seat#: status / passenger):");
+    for (int i = 0; i < b->total_seats; ++i) {
+        printf("Seat %2d : %s", i+1, b->seats[i].booked ? "Booked" : "Available");
+        if (b->seats[i].booked) {
+            printf(" / %s, %d, %s", b->seats[i].name, b->seats[i].age, b->seats[i].gender);
+        }
+        putchar('\n');
+    }
+    putchar('\n');
+}
+
+/* Show available seats for a bus */
+void show_available_seats(Bus *b) {
+    if (!b) {
+        puts("Bus not found.");
+        return;
+    }
+    printf("\nAvailable seats for bus %d (route: %s, date: %s):\n", b->bus_id, b->route, b->date);
+    int count = 0;
+    for (int i = 0; i < b->total_seats; ++i) {
+        if (!b->seats[i].booked) {
+            printf("%d ", i+1);
+            count++;
+        }
+    }
+    if (count == 0) puts("\nNo seats available.");
+    else putchar('\n');
+    putchar('\n');
+}
+
+/* Book a seat: returns 1 on success, 0 on failure */
+int book_seat(Bus *b, int seat_no, const char *name, int age, const char *gender) {
+    if (!b) return 0;
+    if (seat_no < 1 || seat_no > b->total_seats) return 0;
+    int idx = seat_no - 1;
+    if (b->seats[idx].booked) return 0;
+    strncpy(b->seats[idx].name, name, MAX_NAME-1); b->seats[idx].name[MAX_NAME-1] = '\0';
+    b->seats[idx].age = age;
+    strncpy(b->seats[idx].gender, gender, 9); b->seats[idx].gender[9] = '\0';
+    b->seats[idx].booked = 1;
+    return 1;
+}
+
+/* Cancel booking: returns 1 if cancelled, 0 otherwise */
+int cancel_booking(Bus *b, int seat_no) {
+    if (!b) return 0;
+    if (seat_no < 1 || seat_no > b->total_seats) return 0;
+    int idx = seat_no - 1;
+    if (!b->seats[idx].booked) return 0;
+    b->seats[idx].booked = 0;
+    b->seats[idx].name[0] = '\0';
+    b->seats[idx].age = 0;
+    b->seats[idx].gender[0] = '\0';
+    return 1;
+}
+
+/* Save all buses to file (binary) */
+int save_to_file(const char *filename) {
+    FILE *fp = fopen(filename, "wb");
+    if (!fp) {
+        perror("Unable to open file for writing");
+        return 0;
+    }
+    Bus *p = head;
+    while (p) {
+        // write entire Bus struct except the next pointer (avoid storing pointers)
+        Bus copy = *p;
+        copy.next = NULL;
+        if (fwrite(&copy, sizeof(Bus), 1, fp) != 1) {
+            perror("Write error");
+            fclose(fp);
+            return 0;
+        }
+        p = p->next;
+    }
+    fclose(fp);
+    return 1;
+}
+
+/* Load buses from file (replace current list) */
+int load_from_file(const char *filename) {
+    FILE *fp = fopen(filename, "rb");
+    if (!fp) {
+        // no saved file is okay
+        return 0;
+    }
+    // free existing list
+    Bus *p = head;
+    while (p) {
+        Bus *tmp = p->next;
+        free(p);
+        p = tmp;
+    }
+    head = NULL;
+
+    Bus temp;
+    while (fread(&temp, sizeof(Bus), 1, fp) == 1) {
+        // allocate new node and copy
+        Bus *node = (Bus *)malloc(sizeof(Bus));
+        if (!node) {
+            perror("Memory allocation failed while loading");
+            fclose(fp);
+            return 0;
+        }
+        *node = temp;
+        node->next = NULL;
+        add_bus(node);
+    }
+    fclose(fp);
+    return 1;
+}
+
+/* Menu handlers */
+void handle_add_bus() {
+    char driver[MAX_NAME], route[MAX_ROUTE], date[20];
+    int bus_id, seats;
+
+    printf("Enter Bus ID (integer): ");
+    if (scanf("%d", &bus_id) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n'); // flush newline
+    if (find_bus(bus_id)) {
+        puts("Bus with this ID already exists.");
+        return;
+    }
+    printf("Driver name: ");
+    read_line(driver, MAX_NAME);
+    printf("Route (e.g., CityA - CityB): ");
+    read_line(route, MAX_ROUTE);
+    printf("Date (dd-mm-yyyy): ");
+    read_line(date, sizeof(date));
+    printf("Total seats (1-%d): ", MAX_SEATS);
+    if (scanf("%d", &seats) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n');
+
+    if (seats < 1 || seats > MAX_SEATS) {
+        printf("Seats must be between 1 and %d.\n", MAX_SEATS);
+        return;
+    }
+    Bus *b = create_bus(bus_id, driver, route, date, seats);
+    add_bus(b);
+    puts("Bus added successfully.");
+}
+
+void handle_remove_bus() {
+    int id;
+    printf("Enter Bus ID to remove: ");
+    if (scanf("%d", &id) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n');
+    if (remove_bus(id)) puts("Bus removed.");
+    else puts("Bus not found.");
+}
+
+void handle_view_bus() {
+    int id;
+    printf("Enter Bus ID to view details: ");
+    if (scanf("%d", &id) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n');
+    Bus *b = find_bus(id);
+    if (!b) { puts("Bus not found."); return; }
+    display_bus_details(b);
+}
+
+void handle_show_available() {
+    int id;
+    printf("Enter Bus ID to show available seats: ");
+    if (scanf("%d", &id) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n');
+    Bus *b = find_bus(id);
+    show_available_seats(b);
+}
+
+void handle_book_seat() {
+    int id, seat_no, age;
+    char name[MAX_NAME], gender[10];
+    printf("Enter Bus ID: ");
+    if (scanf("%d", &id) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n');
+    Bus *b = find_bus(id);
+    if (!b) { puts("Bus not found."); return; }
+    printf("Enter seat number (1-%d): ", b->total_seats);
+    if (scanf("%d", &seat_no) != 1) { while (getchar() != '\n'); puts("Invalid seat number."); return; }
+    while (getchar() != '\n');
+    if (seat_no < 1 || seat_no > b->total_seats) { puts("Seat number out of range."); return; }
+    if (b->seats[seat_no-1].booked) { puts("Seat already booked."); return; }
+    printf("Passenger name: ");
+    read_line(name, MAX_NAME);
+    printf("Passenger age: ");
+    if (scanf("%d", &age) != 1) { while (getchar() != '\n'); puts("Invalid age."); return; }
+    while (getchar() != '\n');
+    printf("Passenger gender: ");
+    read_line(gender, sizeof(gender));
+
+    if (book_seat(b, seat_no, name, age, gender)) puts("Booking successful.");
+    else puts("Booking failed.");
+}
+
+void handle_cancel_booking() {
+    int id, seat_no;
+    printf("Enter Bus ID: ");
+    if (scanf("%d", &id) != 1) { while (getchar() != '\n'); puts("Invalid input."); return; }
+    while (getchar() != '\n');
+    Bus *b = find_bus(id);
+    if (!b) { puts("Bus not found."); return; }
+    printf("Enter seat number to cancel (1-%d): ", b->total_seats);
+    if (scanf("%d", &seat_no) != 1) { while (getchar() != '\n'); puts("Invalid seat number."); return; }
+    while (getchar() != '\n');
+    if (cancel_booking(b, seat_no)) puts("Booking cancelled.");
+    else puts("Seat was not booked or invalid seat number.");
+}
+
+/* Simple menu */
+void menu() {
+    int choice;
+    while (1) {
+        puts("=== BUS RESERVATION SYSTEM ===");
+        puts("1. List all buses");
+        puts("2. Add a new bus");
+        puts("3. Remove a bus");
+        puts("4. View bus details and seats");
+        puts("5. Show available seats for a bus");
+        puts("6. Book a seat");
+        puts("7. Cancel booking");
+        puts("8. Save data to file");
+        puts("9. Load data from file");
+        puts("0. Exit");
+        printf("Enter choice: ");
+        if (scanf("%d", &choice) != 1) {
+            while (getchar() != '\n');
+            puts("Invalid input. Try again.\n");
+            continue;
+        }
+        while (getchar() != '\n');
+        switch (choice) {
+            case 1: list_buses(); break;
+            case 2: handle_add_bus(); break;
+            case 3: handle_remove_bus(); break;
+            case 4: handle_view_bus(); break;
+            case 5: handle_show_available(); break;
+            case 6: handle_book_seat(); break;
+            case 7: handle_cancel_booking(); break;
+            case 8:
+                if (save_to_file(FILENAME)) puts("Data saved to file.");
+                else puts("Failed to save data.");
+                break;
+            case 9:
+                if (load_from_file(FILENAME)) puts("Data loaded from file.");
+                else puts("No saved data found or failed to load.");
+                break;
+            case 0:
+                puts("Exiting... (saving automatically)");
+                save_to_file(FILENAME);
+                return;
+            default:
+                puts("Invalid choice. Try again.");
+        }
+        puts("--------------------------------------------------\n");
+    }
+}
+
+/* Main */
+int main(void) {
+    // attempt to load existing data (if any)
+    if (load_from_file(FILENAME)) {
+        puts("Loaded existing data from file.");
+    } else {
+        puts("No saved data found (starting fresh).");
+    }
+    menu();
+
+    // cleanup: free memory
+    Bus *p = head;
+    while (p) {
+        Bus *tmp = p->next;
+        free(p);
+        p = tmp;
+    }
+    head = NULL;
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+Lab Manual Notes – Bus Reservation System using Data Structures (C)
+1. Title of Experiment
+
+Bus Reservation System using C Language and Data Structures
+
+2. Aim
+
+To develop a console-based Bus Reservation System using C programming and data structures (linked lists and arrays) to manage bus information, seat booking, and cancellations.
+
+3. Objectives
+
+Understand and implement linked lists in C.
+
+Manage multiple bus records dynamically.
+
+Book and cancel seats efficiently using arrays in structures.
+
+Save and load data to/from a file for persistence.
+
+Apply basic file handling operations in C.
+
+Enhance problem-solving and data management skills in programming.
+
+4. Tools and Software Required
+
+IDE/Compiler: GCC compiler, Code::Blocks, Dev-C++, or any C IDE.
+
+Language: C (Standard C99)
+
+Operating System: Windows/Linux/macOS
+
+Data Structure Concepts: Arrays, Structures, Linked List, File Handling
+
+5. Theory
+
+A Bus Reservation System allows users to:
+
+Add or remove buses.
+
+View bus details and available seats.
+
+Book seats for passengers.
+
+Cancel booked seats.
+
+Persist data using file storage.
+
+Key Concepts Used:
+
+Structures: Used to store bus and passenger information.
+
+Arrays: Used to maintain seat details for each bus.
+
+Linked List: Used to manage a dynamic list of buses.
+
+File Handling: Save/load data to/from a file for persistence.
+
+Flow of the Program:
+
+Load existing bus data from file (if any).
+
+Display menu options to the user.
+
+Perform selected operations (add bus, book seat, cancel, etc.).
+
+Save data to file upon exit.
+
+6. Data Structure Design
+
+a) Passenger Structure:
+
+typedef struct {
+    char name[50];
+    int age;
+    char gender[10];
+    int booked; // 0 = free, 1 = booked
+} Passenger;
+
+
+b) Bus Structure:
+
+typedef struct Bus {
+    int bus_id;
+    char driver[50];
+    char route[100];
+    char date[20];
+    int total_seats;
+    Passenger seats[40]; // array of seats
+    struct Bus *next; // linked list pointer
+} Bus;
+
+
+c) Linked List
+
+Head pointer points to the first bus.
+
+Each bus node contains information and pointer to the next bus.
+
+7. Program Flow / Algorithm
+
+Start the program.
+
+Load saved bus data from file (buses.dat).
+
+Display menu:
+
+List all buses
+
+Add a new bus
+
+Remove a bus
+
+View bus details
+
+Show available seats
+
+Book a seat
+
+Cancel booking
+
+Save/Load data
+
+Exit
+
+Perform operations based on user input:
+
+Adding a bus → Create a new bus node and add to linked list.
+
+Booking a seat → Mark seat as booked in the array of selected bus.
+
+Canceling → Mark seat as available.
+
+After operations, save data automatically to file.
+
+Exit program.
+
+8. Input/Output
+
+Sample Input:
+
+1. Add Bus
+   Bus ID: 101
+   Driver: John Doe
+   Route: CityA - CityB
+   Date: 10-10-2025
+   Seats: 40
+2. Book Seat
+   Bus ID: 101
+   Seat No: 5
+   Name: Alice
+   Age: 22
+   Gender: Female
+
+
+Sample Output:
+
+Bus added successfully.
+Seat 5 booked for Alice.
+Available seats for Bus 101:
+1 2 3 4 6 7 ... 40
+
+9. Features Implemented
+
+Dynamic bus management using linked list.
+
+Seat booking and cancellation.
+
+Display bus details and seat status.
+
+Show available seats.
+
+File handling for saving and loading bus data.
+
+Validation checks (seat number, bus ID, duplicates).
+
+10. Advantages
+
+Efficient management of buses and passengers.
+
+Prevents overbooking of seats.
+
+Easy to add/remove buses dynamically.
+
+Data persistence ensures no loss on exit.
+
+11. Limitations
+
+Console-based interface (no GUI).
+
+Maximum 40 seats per bus (can be made dynamic).
+
+No multi-user access (single-user program).
+
+12. Precautions
+
+Always enter valid inputs (e.g., seat number within range).
+
+Do not use duplicate Bus IDs.
+
+Load data from file before adding new buses to prevent overwriting.
+
+Save data regularly to avoid loss.
+
+13. Conclusion
+
+The experiment successfully demonstrates how C programming and data structures can be used to create a functional Bus Reservation System. It shows practical application of linked lists, arrays, structures, and file handling to solve real-world problems.

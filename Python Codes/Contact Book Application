@@ -1,0 +1,224 @@
+📘 Project Name: Smart Contact Book
+🧩 Features
+
+✅ Add a new contact
+✅ View all contacts
+✅ Search by name or number
+✅ Update existing contact
+✅ Delete a contact
+✅ Save contacts in contacts.json (auto-load on start)
+
+
+
+
+
+"""
+Smart Contact Book
+------------------
+A simple Python program to manage contacts using a JSON file.
+"""
+
+import json
+import os
+
+DATA_FILE = "contacts.json"
+
+
+# ---------------------------- Helper Functions ----------------------------
+
+def load_contacts():
+    """Load contacts from JSON file."""
+    if not os.path.exists(DATA_FILE):
+        return []
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_contacts(contacts):
+    """Save all contacts to JSON file."""
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(contacts, f, ensure_ascii=False, indent=2)
+
+
+def find_contact(contacts, name):
+    """Find a contact by name (case-insensitive)."""
+    for c in contacts:
+        if c["name"].lower() == name.lower():
+            return c
+    return None
+
+
+# ---------------------------- Core Operations ----------------------------
+
+def add_contact():
+    """Add a new contact."""
+    contacts = load_contacts()
+    name = input("Enter Name: ").strip()
+    if find_contact(contacts, name):
+        print("❌ Contact with this name already exists.")
+        return
+    phone = input("Enter Phone Number: ").strip()
+    email = input("Enter Email (optional): ").strip()
+    address = input("Enter Address (optional): ").strip()
+
+    contacts.append({
+        "name": name,
+        "phone": phone,
+        "email": email,
+        "address": address
+    })
+    save_contacts(contacts)
+    print("✅ Contact added successfully!")
+
+
+def view_contacts():
+    """Display all contacts."""
+    contacts = load_contacts()
+    if not contacts:
+        print("📭 No contacts found.")
+        return
+
+    print("\n📒 Contact List:")
+    print("-" * 50)
+    for i, c in enumerate(contacts, 1):
+        print(f"{i}. {c['name']} — {c['phone']}")
+        if c.get("email"):
+            print(f"   📧 {c['email']}")
+        if c.get("address"):
+            print(f"   📍 {c['address']}")
+        print("-" * 50)
+
+
+def search_contact():
+    """Search contact by name or phone."""
+    contacts = load_contacts()
+    if not contacts:
+        print("No contacts to search.")
+        return
+
+    query = input("Enter name or phone number to search: ").strip().lower()
+    results = [c for c in contacts if query in c['name'].lower() or query in c['phone']]
+
+    if not results:
+        print("❌ No matching contacts found.")
+    else:
+        print(f"\n🔍 Found {len(results)} result(s):")
+        for c in results:
+            print(f"📞 {c['name']} — {c['phone']}")
+            if c.get("email"):
+                print(f"   📧 {c['email']}")
+            if c.get("address"):
+                print(f"   📍 {c['address']}")
+            print("-" * 50)
+
+
+def update_contact():
+    """Update a contact by name."""
+    contacts = load_contacts()
+    name = input("Enter the name of the contact to update: ").strip()
+    contact = find_contact(contacts, name)
+    if not contact:
+        print("❌ Contact not found.")
+        return
+
+    print("Leave blank to keep current value.")
+    new_phone = input(f"New Phone ({contact['phone']}): ").strip()
+    new_email = input(f"New Email ({contact.get('email', '')}): ").strip()
+    new_address = input(f"New Address ({contact.get('address', '')}): ").strip()
+
+    if new_phone:
+        contact['phone'] = new_phone
+    if new_email:
+        contact['email'] = new_email
+    if new_address:
+        contact['address'] = new_address
+
+    save_contacts(contacts)
+    print("✅ Contact updated successfully!")
+
+
+def delete_contact():
+    """Delete a contact by name."""
+    contacts = load_contacts()
+    name = input("Enter the name of the contact to delete: ").strip()
+    contact = find_contact(contacts, name)
+    if not contact:
+        print("❌ Contact not found.")
+        return
+
+    confirm = input(f"Are you sure you want to delete '{name}'? (y/n): ").strip().lower()
+    if confirm == "y":
+        contacts.remove(contact)
+        save_contacts(contacts)
+        print("🗑️ Contact deleted.")
+    else:
+        print("❌ Delete cancelled.")
+
+
+# ---------------------------- Main Menu ----------------------------
+
+def main_menu():
+    while True:
+        print("\n===== SMART CONTACT BOOK =====")
+        print("1️⃣  Add Contact")
+        print("2️⃣  View Contacts")
+        print("3️⃣  Search Contact")
+        print("4️⃣  Update Contact")
+        print("5️⃣  Delete Contact")
+        print("0️⃣  Exit")
+
+        choice = input("Enter your choice: ").strip()
+
+        if choice == "1":
+            add_contact()
+        elif choice == "2":
+            view_contacts()
+        elif choice == "3":
+            search_contact()
+        elif choice == "4":
+            update_contact()
+        elif choice == "5":
+            delete_contact()
+        elif choice == "0":
+            print("👋 Goodbye!")
+            break
+        else:
+            print("❌ Invalid choice, please try again.")
+
+
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        print("\n🚪 Exiting gracefully...")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+===== SMART CONTACT BOOK =====
+1️⃣  Add Contact
+2️⃣  View Contacts
+3️⃣  Search Contact
+4️⃣  Update Contact
+5️⃣  Delete Contact
+0️⃣  Exit
+Enter your choice: 1
+Enter Name: John Doe
+Enter Phone Number: 9876543210
+Enter Email (optional): john@example.com
+Enter Address (optional): Hyderabad
+✅ Contact added successfully!

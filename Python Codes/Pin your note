@@ -1,0 +1,332 @@
+#!/usr/bin/env python3
+"""
+Pin Your Note - simple terminal note app with pin/unpin and JSON persistence.
+
+Usage:
+    python pin_your_note.py
+"""
+
+import json
+import os
+import datetime
+import uuid
+from typing import List, Dict, Any
+
+DATA_FILE = "notes_data.json"
+
+
+def now_iso() -> str:
+    return datetime.datetime.now().isoformat(sep=" ", timespec="seconds")
+
+
+class Note:
+    def __init__(self, title: str, body: str, pinned: bool = False, nid: str = None,
+                 created_at: str = None, updated_at: str = None):
+        self.id = nid or str(uuid.uuid4())
+        self.title = title
+        self.body = body
+        self.pinned = pinned
+        self.created_at = created_at or now_iso()
+        self.updated_at = updated_at or self.created_at
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "body": self.body,
+            "pinned": self.pinned,
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+        }
+
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> "Note":
+        return Note(
+            title=d.get("title", ""),
+            body=d.get("body", ""),
+            pinned=d.get("pinned", False),
+            nid=d.get("id"),
+            created_at=d.get("created_at"),
+            updated_at=d.get("updated_at"),
+        )
+
+
+class NoteStore:
+    def __init__(self, path: str = DATA_FILE):
+        self.path = path
+        self.notes: List[Note] = []
+        self.load()
+
+    def load(self):
+        if not os.path.exists(self.path):
+            self.notes = []
+            return
+        try:
+            with open(self.path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.notes = [Note.from_dict(d) for d in data]
+        except Exception as e:
+            print(f"Failed to load notes ({e}). Starting with empty store.")
+            self.notes = []
+
+    def save(self):
+        try:
+            with open(self.path, "w", encoding="utf-8") as f:
+                json.dump([n.to_dict() for n in self.notes], f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Failed to save notes: {e}")
+
+    def add(self, note: Note):
+        self.notes.append(note)
+        self.save()
+
+    def delete(self, nid: str) -> bool:
+        for i, n in enumerate(self.notes):
+            if n.id == nid:
+                del self.notes[i]
+                self.save()
+                return True
+        return False
+
+    def find(self, nid: str) -> Note:
+        for n in self.notes:
+            if n.id == nid:
+                return n
+        return None
+
+    def list_notes(self, show_all: bool = True) -> List[Note]:
+        # Pinned notes first, then by updated_at desc
+        notes = sorted(self.notes, key=lambda x: (not x.pinned, x.updated_at), reverse=False)
+        # But we want pinned first and more recent first => sort pinned=True before False, and updated_at desc
+        notes = sorted(self.notes, key=lambda x: (not x.pinned, -_ts_to_epoch(x.updated_at)))
+        if show_all:
+            return notes
+        return notes[:10]
+
+    def search(self, query: str) -> List[Note]:
+        q = query.lower()
+        return [n for n in self.notes if q in n.title.lower() or q in n.body.lower()]
+
+    def update(self, nid: str, title: str = None, body: str = None, pinned: bool = None) -> bool:
+        n = self.find(nid)
+        if not n:
+            return False
+        if title is not None:
+            n.title = title
+        if body is not None:
+            n.body = body
+        if pinned is not None:
+            n.pinned = pinned
+        n.updated_at = now_iso()
+        self.save()
+        return True
+
+
+def _ts_to_epoch(ts: str) -> float:
+    # Convert "YYYY-MM-DD HH:MM:SS" or ISO-like to epoch for sorting
+    try:
+        dt = datetime.datetime.fromisoformat(ts)
+        return dt.timestamp()
+    except Exception:
+        return 0.0
+
+
+# ---------- CLI Helpers ----------
+
+def print_note_summary(n: Note, index: int = None):
+    prefix = f"{index}. " if index is not None else ""
+    pin_mark = "📌 " if n.pinned else "   "
+    title = n.title if n.title else "(no title)"
+    print(f"{prefix}{pin_mark}{title}  [{n.id[:8]}]  (updated: {n.updated_at})")
+
+
+def print_note_full(n: Note):
+    pin_mark = "📌" if n.pinned else ""
+    print("=" * 60)
+    print(f"{pin_mark} Title: {n.title}")
+    print(f"ID: {n.id}")
+    print(f"Created: {n.created_at} | Updated: {n.updated_at}")
+    print("-" * 60)
+    print(n.body)
+    print("=" * 60)
+
+
+def input_nonempty(prompt: str, default: str = None) -> str:
+    while True:
+        s = input(prompt).rstrip("\n")
+        if s:
+            return s
+        if default is not None:
+            return default
+        print("Please enter a non-empty value.")
+
+
+def main_menu():
+    store = NoteStore()
+    MENU = """
+Pin Your Note - Menu
+1) Create a new note
+2) List notes
+3) View a note (by ID or index)
+4) Edit a note
+5) Delete a note
+6) Pin / Unpin a note
+7) Search notes
+8) Export notes to JSON (custom file)
+9) Import notes from JSON (custom file)
+0) Exit
+"""
+    while True:
+        print(MENU)
+        choice = input("Choose an option: ").strip()
+        if choice == "1":
+            title = input("Title: ").strip()
+            body_lines = []
+            print("Enter the body (single line with '.' ends input):")
+            while True:
+                line = input()
+                if line == ".":
+                    break
+                body_lines.append(line)
+            body = "\n".join(body_lines).strip()
+            pinned_input = input("Pin this note? (y/N): ").strip().lower()
+            pinned = pinned_input == "y"
+            note = Note(title=title, body=body, pinned=pinned)
+            store.add(note)
+            print("Note created.")
+        elif choice == "2":
+            notes = store.list_notes(show_all=True)
+            if not notes:
+                print("No notes found.")
+            else:
+                print(f"Listing {len(notes)} notes (pinned shown first):")
+                for idx, n in enumerate(notes, start=1):
+                    print_note_summary(n, idx)
+        elif choice == "3":
+            key = input("Enter note ID (or index shown in list): ").strip()
+            n = _resolve_note_by_key(store, key)
+            if not n:
+                print("Note not found.")
+            else:
+                print_note_full(n)
+        elif choice == "4":
+            key = input("Enter note ID or index to edit: ").strip()
+            n = _resolve_note_by_key(store, key)
+            if not n:
+                print("Note not found.")
+                continue
+            print("Leave a field blank to keep current value.")
+            new_title = input(f"New title (current: {n.title}): ").strip()
+            print("Enter new body (single line '.' ends input). If you want to keep body, enter '.' immediately.")
+            body_lines = []
+            while True:
+                line = input()
+                if line == ".":
+                    break
+                body_lines.append(line)
+            new_body = "\n".join(body_lines).strip()
+            pinned_input = input(f"Pin this note? (y/N) current: {'Yes' if n.pinned else 'No'}: ").strip().lower()
+            pinned = None
+            if pinned_input == "y":
+                pinned = True
+            elif pinned_input == "n":
+                pinned = False
+            updated = store.update(
+                n.id,
+                title=new_title if new_title else None,
+                body=new_body if new_body else None,
+                pinned=pinned
+            )
+            if updated:
+                print("Note updated.")
+            else:
+                print("Failed to update note.")
+        elif choice == "5":
+            key = input("Enter note ID or index to delete: ").strip()
+            n = _resolve_note_by_key(store, key)
+            if not n:
+                print("Note not found.")
+                continue
+            confirm = input(f"Delete note '{n.title}'? (y/N): ").strip().lower()
+            if confirm == "y":
+                if store.delete(n.id):
+                    print("Note deleted.")
+                else:
+                    print("Delete failed.")
+            else:
+                print("Delete cancelled.")
+        elif choice == "6":
+            key = input("Enter note ID or index to pin/unpin: ").strip()
+            n = _resolve_note_by_key(store, key)
+            if not n:
+                print("Note not found.")
+                continue
+            new_pin = not n.pinned
+            store.update(n.id, pinned=new_pin)
+            print(f"Note {'pinned' if new_pin else 'unpinned'}.")
+        elif choice == "7":
+            q = input("Search query: ").strip()
+            results = store.search(q)
+            if not results:
+                print("No matches.")
+            else:
+                print(f"{len(results)} matches:")
+                for idx, r in enumerate(results, start=1):
+                    print_note_summary(r, idx)
+        elif choice == "8":
+            path = input("Export file path (default export.json): ").strip() or "export.json"
+            try:
+                with open(path, "w", encoding="utf-8") as f:
+                    json.dump([n.to_dict() for n in store.notes], f, ensure_ascii=False, indent=2)
+                print(f"Exported {len(store.notes)} notes to {path}")
+            except Exception as e:
+                print(f"Export failed: {e}")
+        elif choice == "9":
+            path = input("Import file path: ").strip()
+            if not os.path.exists(path):
+                print("File not found.")
+                continue
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                imported = 0
+                for d in data:
+                    # if note with same id exists, skip or create new id — choose to skip duplicates
+                    if any(n.id == d.get("id") for n in store.notes):
+                        continue
+                    store.notes.append(Note.from_dict(d))
+                    imported += 1
+                store.save()
+                print(f"Imported {imported} notes from {path}")
+            except Exception as e:
+                print(f"Import failed: {e}")
+        elif choice == "0":
+            print("Goodbye — notes saved.")
+            break
+        else:
+            print("Unknown option. Please choose from the menu.")
+
+
+def _resolve_note_by_key(store: NoteStore, key: str) -> Note:
+    key = key.strip()
+    # If key looks like an index (integer), use list order
+    if key.isdigit():
+        idx = int(key) - 1
+        notes = store.list_notes()
+        if 0 <= idx < len(notes):
+            return notes[idx]
+        return None
+    # else try find by id prefix
+    for n in store.notes:
+        if n.id.startswith(key):
+            return n
+    # try full id
+    return store.find(key)
+
+
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        print("\nInterrupted. Exiting.")
+

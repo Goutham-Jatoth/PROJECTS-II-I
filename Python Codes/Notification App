@@ -1,0 +1,183 @@
+🧠 Project Name: Smart Notification App
+📦 Requirements
+
+Install dependencies first:
+
+pip install plyer
+
+
+
+"""
+Smart Notification App
+-----------------------
+A simple desktop notification scheduler using Python.
+
+Features:
+- Add custom notifications (title, message, delay)
+- Schedule notifications
+- View notification history
+- Persistent storage using JSON
+"""
+
+import json
+import os
+import time
+from datetime import datetime
+from plyer import notification
+
+DATA_FILE = "notifications.json"
+
+
+# ---------------------------- Helper functions ----------------------------
+
+def load_notifications():
+    """Load saved notifications from file."""
+    if not os.path.exists(DATA_FILE):
+        return []
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return []
+
+
+def save_notifications(data):
+    """Save all notifications to file."""
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def show_notification(title, message):
+    """Show desktop notification."""
+    notification.notify(
+        title=title,
+        message=message,
+        app_name="Smart Notification App",
+        timeout=5  # seconds the popup stays visible
+    )
+
+
+# ---------------------------- Core App Functions ----------------------------
+
+def schedule_notification(title, message, delay_seconds):
+    """Schedule and show notification after a delay."""
+    print(f"\n⏳ Notification scheduled in {delay_seconds} seconds...")
+    time.sleep(delay_seconds)
+    show_notification(title, message)
+    print(f"✅ Notification sent at {datetime.now().strftime('%H:%M:%S')}!")
+
+    # Save to history
+    history = load_notifications()
+    history.append({
+        "title": title,
+        "message": message,
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    })
+    save_notifications(history)
+
+
+def view_history():
+    """Display all past notifications."""
+    history = load_notifications()
+    if not history:
+        print("\n📭 No notifications sent yet.")
+        return
+
+    print("\n📜 Notification History:")
+    for idx, item in enumerate(history, start=1):
+        print(f"{idx}. [{item['time']}] {item['title']} — {item['message']}")
+
+
+def clear_history():
+    """Clear saved notifications."""
+    confirm = input("⚠️  Are you sure you want to clear all history? (y/n): ").strip().lower()
+    if confirm == "y":
+        save_notifications([])
+        print("🗑️  Notification history cleared.")
+    else:
+        print("❌ Cancelled.")
+
+
+# ---------------------------- Menu Loop ----------------------------
+
+def main_menu():
+    while True:
+        print("\n===== SMART NOTIFICATION APP =====")
+        print("1️⃣  Schedule a notification")
+        print("2️⃣  View notification history")
+        print("3️⃣  Clear notification history")
+        print("0️⃣  Exit")
+
+        choice = input("Enter your choice: ").strip()
+
+        if choice == "1":
+            title = input("Enter title: ").strip()
+            message = input("Enter message: ").strip()
+            delay = input("Enter delay (in seconds): ").strip()
+            if not delay.isdigit():
+                print("❌ Please enter a valid number for delay.")
+                continue
+
+            delay_seconds = int(delay)
+            schedule_notification(title, message, delay_seconds)
+
+        elif choice == "2":
+            view_history()
+
+        elif choice == "3":
+            clear_history()
+
+        elif choice == "0":
+            print("👋 Goodbye!")
+            break
+
+        else:
+            print("❌ Invalid choice, please try again.")
+
+
+if __name__ == "__main__":
+    try:
+        main_menu()
+    except KeyboardInterrupt:
+        print("\n🚪 Exiting gracefully...")
+
+
+
+
+
+
+
+💡 How It Works
+
+When you run the program, it opens a simple terminal menu.
+
+Choose 1 to add a new notification:
+
+Enter title, message, and delay time (in seconds).
+
+After the delay, a system notification will appear!
+
+The app saves each notification to notifications.json so you can review them later.
+
+Choose 2 to see past notifications.
+
+Choose 3 to clear history.
+
+
+
+
+
+
+
+===== SMART NOTIFICATION APP =====
+1️⃣  Schedule a notification
+2️⃣  View notification history
+3️⃣  Clear notification history
+0️⃣  Exit
+Enter your choice: 1
+Enter title: Break Reminder
+Enter message: Stand up and stretch!
+Enter delay (in seconds): 10
+
+⏳ Notification scheduled in 10 seconds...
+✅ Notification sent at 10:22:31!

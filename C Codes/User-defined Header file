@@ -1,0 +1,233 @@
+🧩 1️⃣ stack.h → User-defined header file (function definitions)
+
+This file contains:
+
+Stack structure
+
+Function prototypes
+
+Function definitions for push(), pop(), peek(), and display()
+
+
+
+
+
+
+
+
+
+
+// stack.h - User-defined Header File for Stack Operations
+#ifndef STACK_H
+#define STACK_H
+
+#include <stdio.h>
+#define MAX 10
+
+// Structure to define a Stack
+struct Stack {
+    int arr[MAX];
+    int top;
+};
+
+// Initialize stack
+void init(struct Stack *s) {
+    s->top = -1;
+}
+
+// Push operation
+void push(struct Stack *s, int value) {
+    if (s->top == MAX - 1) {
+        printf("Stack Overflow! Cannot push %d\n", value);
+    } else {
+        s->arr[++(s->top)] = value;
+        printf("%d pushed to stack.\n", value);
+    }
+}
+
+// Pop operation
+int pop(struct Stack *s) {
+    if (s->top == -1) {
+        printf("Stack Underflow! Cannot pop.\n");
+        return -1;
+    } else {
+        int value = s->arr[(s->top)--];
+        printf("%d popped from stack.\n", value);
+        return value;
+    }
+}
+
+// Peek operation (Top element)
+int peek(struct Stack *s) {
+    if (s->top == -1) {
+        printf("Stack is empty.\n");
+        return -1;
+    } else {
+        return s->arr[s->top];
+    }
+}
+
+// Display stack contents
+void display(struct Stack *s) {
+    if (s->top == -1) {
+        printf("Stack is empty.\n");
+    } else {
+        printf("Stack elements: ");
+        for (int i = s->top; i >= 0; i--) {
+            printf("%d ", s->arr[i]);
+        }
+        printf("\n");
+    }
+}
+
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🧩 2️⃣ main.c → Main Program (Function Calling)
+
+This file uses the stack.h header to perform operations.
+
+
+
+
+
+
+
+
+
+
+
+
+// main.c - Stack Operations using User-defined Header File
+#include "stack.h"
+
+int main() {
+    struct Stack s;
+    init(&s);
+
+    int choice, value;
+
+    printf("===== STACK OPERATIONS MENU =====\n");
+    printf("1. Push\n");
+    printf("2. Pop\n");
+    printf("3. Peek (Top Element)\n");
+    printf("4. Display\n");
+    printf("5. Exit\n");
+
+    do {
+        printf("\nEnter your choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                printf("Enter value to push: ");
+                scanf("%d", &value);
+                push(&s, value);
+                break;
+
+            case 2:
+                pop(&s);
+                break;
+
+            case 3:
+                value = peek(&s);
+                if (value != -1)
+                    printf("Top element = %d\n", value);
+                break;
+
+            case 4:
+                display(&s);
+                break;
+
+            case 5:
+                printf("Exiting program.\n");
+                break;
+
+            default:
+                printf("Invalid choice! Try again.\n");
+        }
+
+    } while (choice != 5);
+
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+⚙️ How to Compile and Run
+
+Save both files in the same folder:
+
+stack.h
+
+main.c
+
+Open terminal or command prompt in that folder.
+
+Compile:
+
+
+gcc main.c -o stack
+
+Run:
+
+./stack
+
+
+
+
+===== STACK OPERATIONS MENU =====
+1. Push
+2. Pop
+3. Peek (Top Element)
+4. Display
+5. Exit
+
+Enter your choice: 1
+Enter value to push: 10
+10 pushed to stack.
+
+Enter your choice: 1
+Enter value to push: 20
+20 pushed to stack.
+
+Enter your choice: 4
+Stack elements: 20 10
+
+Enter your choice: 3
+Top element = 20
+
+Enter your choice: 2
+20 popped from stack.
+
+Enter your choice: 4
+Stack elements: 10
+
+Enter your choice: 5
+Exiting program.

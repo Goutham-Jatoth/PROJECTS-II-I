@@ -1,0 +1,294 @@
+🏥 Project Title
+
+HealthCare Mobile App – A Java Project Demonstrating OOP Concepts
+
+🎯 Objective
+
+To design and implement a simple Java project that simulates a healthcare mobile application, demonstrating:
+
+Inheritance → sharing common features between users and doctors
+
+Polymorphism (Method Overriding) → different appointment booking styles
+
+Encapsulation → secure patient data through getters/setters
+
+Abstraction → hiding complex logic inside methods
+
+Packages → organizing code in a modular structure
+
+🗂️ Project Folder Structure
+HealthCareApp/
+├── src/
+│   ├── com/healthcare/base/
+│   │   └── Person.java
+│   ├── com/healthcare/users/
+│   │   ├── Patient.java
+│   │   └── Doctor.java
+│   ├── com/healthcare/services/
+│   │   ├── Appointment.java
+│   │   ├── OnlineAppointment.java
+│   │   └── InPersonAppointment.java
+│   └── com/healthcare/main/
+│       └── HealthCareApp.java
+
+💻 Source Code Files
+1️⃣ Person.java (Base Class)
+
+Path: com/healthcare/base/Person.java
+
+package com.healthcare.base;
+
+public class Person {
+    protected String name;
+    protected int age;
+    protected String gender;
+
+    public Person(String name, int age, String gender) {
+        this.name = name;
+        this.age = age;
+        this.gender = gender;
+    }
+
+    public void displayInfo() {
+        System.out.println("Name: " + name);
+        System.out.println("Age: " + age);
+        System.out.println("Gender: " + gender);
+    }
+}
+
+2️⃣ Patient.java (Subclass of Person)
+
+Path: com/healthcare/users/Patient.java
+
+package com.healthcare.users;
+
+import com.healthcare.base.Person;
+
+public class Patient extends Person {
+    private String disease;
+    private String contactNumber;
+
+    public Patient(String name, int age, String gender, String disease, String contactNumber) {
+        super(name, age, gender);
+        this.disease = disease;
+        this.contactNumber = contactNumber;
+    }
+
+    public String getDisease() {
+        return disease;
+    }
+
+    public void setDisease(String disease) {
+        this.disease = disease;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void displayPatientInfo() {
+        displayInfo();
+        System.out.println("Disease: " + disease);
+        System.out.println("Contact: " + contactNumber);
+    }
+}
+
+3️⃣ Doctor.java (Subclass of Person)
+
+Path: com/healthcare/users/Doctor.java
+
+package com.healthcare.users;
+
+import com.healthcare.base.Person;
+
+public class Doctor extends Person {
+    private String specialization;
+    private int experience;
+
+    public Doctor(String name, int age, String gender, String specialization, int experience) {
+        super(name, age, gender);
+        this.specialization = specialization;
+        this.experience = experience;
+    }
+
+    public void displayDoctorInfo() {
+        displayInfo();
+        System.out.println("Specialization: " + specialization);
+        System.out.println("Experience: " + experience + " years");
+    }
+
+    public void consult() {
+        System.out.println("Doctor " + name + " is consulting a patient...");
+    }
+}
+
+4️⃣ Appointment.java (Parent class)
+
+Path: com/healthcare/services/Appointment.java
+
+package com.healthcare.services;
+
+import com.healthcare.users.Doctor;
+import com.healthcare.users.Patient;
+
+public class Appointment {
+    protected Doctor doctor;
+    protected Patient patient;
+    protected String date;
+
+    public Appointment(Doctor doctor, Patient patient, String date) {
+        this.doctor = doctor;
+        this.patient = patient;
+        this.date = date;
+    }
+
+    public void bookAppointment() {
+        System.out.println("Appointment booked for " + patient.name + " with Dr. " + doctor.name);
+    }
+}
+
+5️⃣ OnlineAppointment.java (Child class)
+
+Path: com/healthcare/services/OnlineAppointment.java
+
+package com.healthcare.services;
+
+import com.healthcare.users.Doctor;
+import com.healthcare.users.Patient;
+
+public class OnlineAppointment extends Appointment {
+
+    private String meetingLink;
+
+    public OnlineAppointment(Doctor doctor, Patient patient, String date, String meetingLink) {
+        super(doctor, patient, date);
+        this.meetingLink = meetingLink;
+    }
+
+    // Method Overriding
+    @Override
+    public void bookAppointment() {
+        System.out.println("Online Appointment booked:");
+        System.out.println("Patient: " + patient.name);
+        System.out.println("Doctor: Dr. " + doctor.name);
+        System.out.println("Date: " + date);
+        System.out.println("Meeting Link: " + meetingLink);
+    }
+}
+
+6️⃣ InPersonAppointment.java (Child class)
+
+Path: com/healthcare/services/InPersonAppointment.java
+
+package com.healthcare.services;
+
+import com.healthcare.users.Doctor;
+import com.healthcare.users.Patient;
+
+public class InPersonAppointment extends Appointment {
+    private String hospitalAddress;
+
+    public InPersonAppointment(Doctor doctor, Patient patient, String date, String hospitalAddress) {
+        super(doctor, patient, date);
+        this.hospitalAddress = hospitalAddress;
+    }
+
+    // Method Overriding
+    @Override
+    public void bookAppointment() {
+        System.out.println("In-Person Appointment booked:");
+        System.out.println("Patient: " + patient.name);
+        System.out.println("Doctor: Dr. " + doctor.name);
+        System.out.println("Date: " + date);
+        System.out.println("Hospital Address: " + hospitalAddress);
+    }
+}
+
+7️⃣ HealthCareApp.java (Main class)
+
+Path: com/healthcare/main/HealthCareApp.java
+
+package com.healthcare.main;
+
+import com.healthcare.users.*;
+import com.healthcare.services.*;
+
+public class HealthCareApp {
+    public static void main(String[] args) {
+
+        System.out.println("===== Welcome to HealthCare Mobile App 💊📱 =====");
+
+        Doctor doc1 = new Doctor("Dr. Priya Sharma", 40, "Female", "Cardiologist", 12);
+        Patient pat1 = new Patient("Rohan Mehta", 28, "Male", "Chest Pain", "9876543210");
+
+        System.out.println("\n--- Doctor Details ---");
+        doc1.displayDoctorInfo();
+
+        System.out.println("\n--- Patient Details ---");
+        pat1.displayPatientInfo();
+
+        System.out.println("\n--- Booking Online Appointment ---");
+        OnlineAppointment online = new OnlineAppointment(doc1, pat1, "2025-10-20", "https://meet.healthcare.com/rohan123");
+        online.bookAppointment();  // Overridden Method
+
+        System.out.println("\n--- Booking In-Person Appointment ---");
+        InPersonAppointment inperson = new InPersonAppointment(doc1, pat1, "2025-10-21", "Apollo Hospital, Hyderabad");
+        inperson.bookAppointment(); // Overridden Method
+
+        System.out.println("\n===== Thank you for using HealthCare App! Stay Healthy ❤️ =====");
+    }
+}
+
+🖥️ Sample Output
+===== Welcome to HealthCare Mobile App 💊📱 =====
+
+--- Doctor Details ---
+Name: Dr. Priya Sharma
+Age: 40
+Gender: Female
+Specialization: Cardiologist
+Experience: 12 years
+
+--- Patient Details ---
+Name: Rohan Mehta
+Age: 28
+Gender: Male
+Disease: Chest Pain
+Contact: 9876543210
+
+--- Booking Online Appointment ---
+Online Appointment booked:
+Patient: Rohan Mehta
+Doctor: Dr. Priya Sharma
+Date: 2025-10-20
+Meeting Link: https://meet.healthcare.com/rohan123
+
+--- Booking In-Person Appointment ---
+In-Person Appointment booked:
+Patient: Rohan Mehta
+Doctor: Dr. Priya Sharma
+Date: 2025-10-21
+Hospital Address: Apollo Hospital, Hyderabad
+
+===== Thank you for using HealthCare App! Stay Healthy ❤️ =====
+
+⚙️ How to Compile and Run
+
+Open terminal or command prompt in the src folder.
+
+Compile all .java files:
+
+javac com/healthcare/base/*.java com/healthcare/users/*.java com/healthcare/services/*.java com/healthcare/main/*.java
+
+
+Run the app:
+
+java com.healthcare.main.HealthCareApp
+
+🧠 Concepts Used
+Concept	Demonstrated In
+Inheritance	Patient & Doctor inherit from Person
+Polymorphism	bookAppointment() overridden in OnlineAppointment & InPersonAppointment
+Encapsulation	Private fields in Patient class with getters/setters
+Abstraction	Appointment class hides internal details of booking
+Packages	Modular organization under com.healthcare.*

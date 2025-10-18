@@ -1,0 +1,546 @@
+C program for a Hangman game that deliberately uses data structures (a dynamic WordList, a Game struct, and a linked list to store guessed letters) so it looks like a proper submission. It includes:
+
+dynamic word loading from a file (words.txt) with a built-in fallback list,
+
+clear, commented functions,
+
+input validation,
+
+linked list for guessed letters (to show data-structure usage),
+
+seedable random choice,
+
+and compile/run instructions.
+
+Copy the code into hangman.c. If you want a custom word list, create words.txt (one word per line); otherwise the built-in words will be used.
+
+/* hangman.c
+ *
+ * Single-file C Hangman game using data structures:
+ * - WordList: dynamic array of words (dynamically loaded from file or fallback)
+ * - Game: struct storing game state
+ * - Linked list of guessed letters (demonstrates pointer-based DS)
+ *
+ * Compile:
+ *   gcc -o hangman hangman.c
+ * Run:
+ *   ./hangman
+ *
+ * Optionally create a "words.txt" file in the same folder (one word per line)
+ * (program will load it; if not found, it uses built-in words).
+ *
+ * Author: (your name)
+ * Date: (put today's date)
+ */
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
+
+/* ---------- Constants ---------- */
+#define INITIAL_WORD_CAPACITY 32
+#define MAX_WORD_LENGTH 128
+#define MAX_WRONG_GUESSES 6
+
+/* ---------- Data structures ---------- */
+
+/* Linked list node to store guessed letters (so we show data structure usage) */
+typedef struct GuessNode {
+    char letter;                /* lowercase letter a-z */
+    struct GuessNode *next;
+} GuessNode;
+
+/* Dynamic word list */
+typedef struct {
+    char **words;               /* array of C strings */
+    int count;                  /* number of words loaded */
+    int capacity;               /* allocated capacity */
+} WordList;
+
+/* Game state */
+typedef struct {
+    const char *secret;         /* pointer to chosen word (owned by WordList) */
+    int secret_len;
+    int wrong_guesses;          /* number of incorrect guesses made */
+    int max_wrong;              /* maximum allowed wrong guesses */
+    int *revealed;              /* array same length as secret: 1 if revealed else 0 */
+    GuessNode *guessed_head;    /* linked list head of guessed letters */
+} Game;
+
+/* ---------- Utility functions for dynamic word list ---------- */
+
+/* initialize WordList */
+void wordlist_init(WordList *wl) {
+    wl->capacity = INITIAL_WORD_CAPACITY;
+    wl->count = 0;
+    wl->words = malloc(sizeof(char*) * wl->capacity);
+    if (!wl->words) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+/* push one word into WordList (makes a heap copy) */
+void wordlist_push(WordList *wl, const char *word) {
+    if (wl->count >= wl->capacity) {
+        wl->capacity *= 2;
+        wl->words = realloc(wl->words, sizeof(char*) * wl->capacity);
+        if (!wl->words) {
+            fprintf(stderr, "Memory allocation failed\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+    wl->words[wl->count] = strdup(word);
+    if (!wl->words[wl->count]) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    wl->count++;
+}
+
+/* free WordList memory */
+void wordlist_free(WordList *wl) {
+    for (int i = 0; i < wl->count; ++i) {
+        free(wl->words[i]);
+    }
+    free(wl->words);
+    wl->words = NULL;
+    wl->count = 0;
+    wl->capacity = 0;
+}
+
+/* load words from file; returns 1 if loaded, 0 if file not found or error */
+int wordlist_load_from_file(WordList *wl, const char *filename) {
+    FILE *f = fopen(filename, "r");
+    if (!f) return 0;
+    char buffer[MAX_WORD_LENGTH];
+    while (fgets(buffer, sizeof(buffer), f)) {
+        /* strip newline and spaces */
+        char *p = buffer;
+        while (*p && (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n')) ++p;
+        /* trim trailing whitespace */
+        char *end = buffer + strlen(buffer) - 1;
+        while (end >= buffer && (*end == '\n' || *end == '\r' || *end == ' ' || *end == '\t')) {
+            *end = '\0';
+            --end;
+        }
+        if (strlen(buffer) == 0) continue;
+        /* convert to lowercase and remove spaces */
+        char cleaned[MAX_WORD_LENGTH];
+        int ci = 0;
+        for (int i = 0; buffer[i] && ci < MAX_WORD_LENGTH-1; ++i) {
+            if (isalpha((unsigned char)buffer[i])) {
+                cleaned[ci++] = (char)tolower((unsigned char)buffer[i]);
+            }
+        }
+        cleaned[ci] = '\0';
+        if (ci > 0) wordlist_push(wl, cleaned);
+    }
+    fclose(f);
+    return wl->count > 0;
+}
+
+/* if file not present, use fallback builtin words */
+void wordlist_load_builtin(WordList *wl) {
+    const char *builtins[] = {
+        "computer", "programming", "hangman", "structure", "pointer",
+        "variable", "function", "array", "pointer", "algorithm",
+        "datastructure", "binary", "network", "compiler", "debug",
+        "project", "university", "assignment", "challenge", "education"
+    };
+    int n = sizeof(builtins)/sizeof(builtins[0]);
+    for (int i = 0; i < n; ++i) wordlist_push(wl, builtins[i]);
+}
+
+/* choose a random word index */
+int wordlist_choose_index(WordList *wl) {
+    if (wl->count == 0) return -1;
+    return rand() % wl->count;
+}
+
+/* ---------- Linked list functions for guessed letters ---------- */
+
+/* check if letter already guessed (return 1 if yes) */
+int guessed_contains(GuessNode *head, char letter) {
+    GuessNode *cur = head;
+    while (cur) {
+        if (cur->letter == letter) return 1;
+        cur = cur->next;
+    }
+    return 0;
+}
+
+/* add letter to front of list (avoid duplicates by caller) */
+void guessed_add(GuessNode **head_ref, char letter) {
+    GuessNode *node = malloc(sizeof(GuessNode));
+    if (!node) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    node->letter = letter;
+    node->next = *head_ref;
+    *head_ref = node;
+}
+
+/* free linked list */
+void guessed_free(GuessNode *head) {
+    GuessNode *cur = head;
+    while (cur) {
+        GuessNode *tmp = cur;
+        cur = cur->next;
+        free(tmp);
+    }
+}
+
+/* ---------- Game functions ---------- */
+
+/* create and initialize game state */
+Game *game_create(const char *secret_word, int max_wrong) {
+    Game *g = malloc(sizeof(Game));
+    if (!g) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    g->secret = secret_word;
+    g->secret_len = (int)strlen(secret_word);
+    g->wrong_guesses = 0;
+    g->max_wrong = max_wrong;
+    g->revealed = calloc(g->secret_len, sizeof(int));
+    if (!g->revealed) {
+        fprintf(stderr, "Memory allocation failed\n");
+        exit(EXIT_FAILURE);
+    }
+    /* reveal non-alpha characters (if any) just in case */
+    for (int i = 0; i < g->secret_len; ++i) {
+        if (!isalpha((unsigned char)g->secret[i])) g->revealed[i] = 1;
+    }
+    g->guessed_head = NULL;
+    return g;
+}
+
+/* free game */
+void game_free(Game *g) {
+    if (!g) return;
+    free(g->revealed);
+    guessed_free(g->guessed_head);
+    free(g);
+}
+
+/* reveal letter positions if letter in secret; return number of letters revealed this guess */
+int game_reveal_letter(Game *g, char letter) {
+    int revealed_count = 0;
+    for (int i = 0; i < g->secret_len; ++i) {
+        if (g->secret[i] == letter && !g->revealed[i]) {
+            g->revealed[i] = 1;
+            revealed_count++;
+        }
+    }
+    return revealed_count;
+}
+
+/* check win: all revealed */
+int game_is_won(Game *g) {
+    for (int i = 0; i < g->secret_len; ++i) {
+        if (!g->revealed[i]) return 0;
+    }
+    return 1;
+}
+
+/* check lost */
+int game_is_lost(Game *g) {
+    return g->wrong_guesses >= g->max_wrong;
+}
+
+/* display current hangman ASCII (simple stages) */
+void display_hangman(int wrong) {
+    /* 7 stages (0..6) */
+    static const char *stages[] = {
+        "  +---+\n  |   |\n      |\n      |\n      |\n      |\n=========\n",
+        "  +---+\n  |   |\n  O   |\n      |\n      |\n      |\n=========\n",
+        "  +---+\n  |   |\n  O   |\n  |   |\n      |\n      |\n=========\n",
+        "  +---+\n  |   |\n  O   |\n /|   |\n      |\n      |\n=========\n",
+        "  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n      |\n=========\n",
+        "  +---+\n  |   |\n  O   |\n /|\\  |\n /    |\n      |\n=========\n",
+        "  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n      |\n=========\n"
+    };
+    int idx = wrong;
+    if (idx < 0) idx = 0;
+    if (idx > 6) idx = 6;
+    printf("%s", stages[idx]);
+}
+
+/* display current known letters and underscores */
+void game_display_state(Game *g) {
+    printf("\nCurrent word: ");
+    for (int i = 0; i < g->secret_len; ++i) {
+        if (g->revealed[i]) putchar(g->secret[i]);
+        else putchar('_');
+        putchar(' ');
+    }
+    putchar('\n');
+
+    /* show guessed letters */
+    printf("Guessed letters: ");
+    GuessNode *cur = g->guessed_head;
+    if (!cur) printf("(none)");
+    while (cur) {
+        printf("%c ", cur->letter);
+        cur = cur->next;
+    }
+    putchar('\n');
+
+    printf("Wrong guesses: %d/%d\n", g->wrong_guesses, g->max_wrong);
+    display_hangman(g->wrong_guesses);
+}
+
+/* prompt user for a letter or word guess; returns 1 if processed, 0 on EOF */
+int prompt_guess(char *buffer, size_t bufsize) {
+    printf("\nEnter a letter (a-z) or guess the full word: ");
+    if (!fgets(buffer, (int)bufsize, stdin)) return 0;
+    /* strip newline */
+    size_t ln = strlen(buffer);
+    if (ln > 0 && buffer[ln-1] == '\n') buffer[ln-1] = '\0';
+    return 1;
+}
+
+/* process a guess (single letter or full word) */
+/* returns: 1 = continue game, 0 = EOF / user quit */
+int game_process_input(Game *g, const char *input_line) {
+    if (!input_line) return 0;
+    /* trim leading spaces */
+    while (*input_line == ' ' || *input_line == '\t') ++input_line;
+    if (strlen(input_line) == 0) {
+        printf("Empty input — try again.\n");
+        return 1;
+    }
+
+    /* convert input to lowercase */
+    char cleaned[MAX_WORD_LENGTH];
+    int ci = 0;
+    for (int i = 0; input_line[i] && ci < MAX_WORD_LENGTH-1; ++i) {
+        char ch = input_line[i];
+        if (isalpha((unsigned char)ch)) cleaned[ci++] = (char)tolower((unsigned char)ch);
+        /* ignore non-letters */
+    }
+    cleaned[ci] = '\0';
+    if (ci == 0) {
+        printf("No letters found in input — try again.\n");
+        return 1;
+    }
+
+    /* If single letter */
+    if (ci == 1) {
+        char letter = cleaned[0];
+        if (guessed_contains(g->guessed_head, letter)) {
+            printf("You've already guessed '%c'. Try another letter.\n", letter);
+            return 1;
+        }
+        guessed_add(&g->guessed_head, letter);
+        int found = game_reveal_letter(g, letter);
+        if (found > 0) {
+            printf("Good! The letter '%c' appears %d time(s).\n", letter, found);
+        } else {
+            printf("Sorry — the letter '%c' is not in the word.\n", letter);
+            g->wrong_guesses++;
+        }
+        return 1;
+    }
+
+    /* Otherwise treat as full-word guess */
+    if (ci > 1) {
+        if (strcmp(cleaned, g->secret) == 0) {
+            /* reveal everything */
+            for (int i = 0; i < g->secret_len; ++i) g->revealed[i] = 1;
+            printf("Correct! You guessed the word.\n");
+            return 1;
+        } else {
+            printf("Incorrect full-word guess.\n");
+            g->wrong_guesses++;
+            return 1;
+        }
+    }
+    return 1;
+}
+
+/* ---------- Game loop / UI ---------- */
+
+void print_instructions(void) {
+    printf("=== Hangman ===\n");
+    printf("Guess letters to reveal the secret word. You can also guess the whole word.\n");
+    printf("You have %d wrong guesses allowed. Non-letters in the secret are revealed.\n\n", MAX_WRONG_GUESSES);
+}
+
+/* normalize/validate the chosen word: make lower-case and only letters */
+char *normalize_word_for_game(const char *s) {
+    char *out = malloc(strlen(s) + 1);
+    if (!out) exit(EXIT_FAILURE);
+    int j = 0;
+    for (int i = 0; s[i]; ++i) {
+        if (isalpha((unsigned char)s[i])) {
+            out[j++] = (char)tolower((unsigned char)s[i]);
+        }
+    }
+    out[j] = '\0';
+    /* if resulted empty (shouldn't) return a fallback */
+    if (j == 0) {
+        strcpy(out, "hangman");
+    }
+    return out;
+}
+
+void play_game_with_word(const char *raw_word) {
+    char *secret = normalize_word_for_game(raw_word);
+    Game *g = game_create(secret, MAX_WRONG_GUESSES);
+    print_instructions();
+
+    char input[MAX_WORD_LENGTH];
+    while (1) {
+        game_display_state(g);
+        if (game_is_won(g)) {
+            printf("\nCongratulations — you won! The word was: %s\n", g->secret);
+            break;
+        }
+        if (game_is_lost(g)) {
+            printf("\nGame over — you lost. The word was: %s\n", g->secret);
+            break;
+        }
+
+        if (!prompt_guess(input, sizeof(input))) {
+            printf("\nInput closed. Exiting game.\n");
+            break;
+        }
+
+        /* allow a quit command */
+        if (strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) {
+            printf("You chose to quit. The word was: %s\n", g->secret);
+            break;
+        }
+        game_process_input(g, input);
+    }
+
+    game_free(g);
+    free(secret);
+}
+
+/* ---------- Main ---------- */
+
+int main(void) {
+    srand((unsigned int)time(NULL));
+    WordList wl;
+    wordlist_init(&wl);
+
+    int loaded = wordlist_load_from_file(&wl, "words.txt");
+    if (!loaded) {
+        /* use builtin list if no file */
+        wordlist_load_builtin(&wl);
+        printf("Using built-in word list (no words.txt found).\n");
+    } else {
+        printf("Loaded %d words from words.txt\n", wl.count);
+    }
+
+    printf("Welcome to Hangman! Choose an option:\n");
+    while (1) {
+        printf("\n1) Play random word\n2) Choose difficulty (max wrong guesses) [default %d]\n3) Show available words (count)\n4) Play a specific word index\n5) Quit\nEnter choice (1-5): ", MAX_WRONG_GUESSES);
+        char choice_buf[16];
+        if (!fgets(choice_buf, sizeof(choice_buf), stdin)) break;
+        int choice = atoi(choice_buf);
+
+        if (choice == 1) {
+            int idx = wordlist_choose_index(&wl);
+            if (idx < 0) {
+                printf("No words available.\n");
+                continue;
+            }
+            play_game_with_word(wl.words[idx]);
+        } else if (choice == 2) {
+            printf("Enter max allowed wrong guesses (1-10): ");
+            char tmp[16];
+            if (!fgets(tmp, sizeof(tmp), stdin)) break;
+            int v = atoi(tmp);
+            if (v < 1) v = 1;
+            if (v > 10) v = 10;
+            /* Play with same random choose but custom max: reuse Game creation path */
+            int idx = wordlist_choose_index(&wl);
+            if (idx < 0) { printf("No words available.\n"); continue; }
+            /* Minor hack: temporarily override constant by copying play loop here */
+            char *secret = normalize_word_for_game(wl.words[idx]);
+            Game *g = game_create(secret, v);
+            print_instructions();
+            char input[MAX_WORD_LENGTH];
+            while (1) {
+                game_display_state(g);
+                if (game_is_won(g)) {
+                    printf("\nCongratulations — you won! The word was: %s\n", g->secret);
+                    break;
+                }
+                if (game_is_lost(g)) {
+                    printf("\nGame over — you lost. The word was: %s\n", g->secret);
+                    break;
+                }
+                if (!prompt_guess(input, sizeof(input))) {
+                    printf("\nInput closed. Exiting game.\n");
+                    break;
+                }
+                if (strcmp(input, "quit") == 0 || strcmp(input, "exit") == 0) {
+                    printf("You chose to quit. The word was: %s\n", g->secret);
+                    break;
+                }
+                game_process_input(g, input);
+            }
+            game_free(g);
+            free(secret);
+        } else if (choice == 3) {
+            printf("Words available: %d\n", wl.count);
+            printf("Print indexes? (y/n): ");
+            char yn[8];
+            if (!fgets(yn, sizeof(yn), stdin)) break;
+            if (tolower((unsigned char)yn[0]) == 'y') {
+                for (int i = 0; i < wl.count; ++i) {
+                    printf("%3d: %s\n", i, wl.words[i]);
+                }
+            }
+        } else if (choice == 4) {
+            printf("Enter index (0..%d): ", wl.count > 0 ? wl.count-1 : 0);
+            char idxs[16];
+            if (!fgets(idxs, sizeof(idxs), stdin)) break;
+            int idx = atoi(idxs);
+            if (idx < 0 || idx >= wl.count) {
+                printf("Invalid index.\n");
+            } else {
+                play_game_with_word(wl.words[idx]);
+            }
+        } else if (choice == 5) {
+            printf("Goodbye!\n");
+            break;
+        } else {
+            printf("Unknown choice. Enter 1-5.\n");
+        }
+    }
+
+    wordlist_free(&wl);
+    return 0;
+}
+
+Notes & suggestions for project submission
+
+Add a short README describing:
+
+How to compile & run (gcc -o hangman hangman.c).
+
+That the program loads words.txt if present, else uses built-in words.
+
+Which data structures were used (dynamic array for words, Game struct, linked list for guessed letters).
+
+If you want extra credit, consider adding:
+
+Save/load high scores,
+
+Difficulty categories (easy/medium/hard with filtered word lengths),
+
+GUI front-end (SDL) or web version,
+
+Unit tests for the wordlist and guessing logic.
+
+For code clarity in submission, add your name/date in the file header and optionally split into multiple files (wordlist.c/h, game.c/h) if multi-file projects are allowed.

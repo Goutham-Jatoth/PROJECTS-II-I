@@ -1,0 +1,292 @@
+🌆 Project Title: Smart City Project (City Guide)
+🧠 Abstract
+
+The Smart City Project is a web-based application that provides complete information about a city —
+like hotels, restaurants, tourist spots, colleges, hospitals, and transport services — all in one place.
+
+It has:
+
+User Module (Visitors / Tourists)
+
+Admin Module (Manage city data)
+
+Database (MySQL) to store and retrieve data
+
+Visitors can sign up and explore different sections, while the Admin can add/edit/delete information dynamically.
+
+🧰 Technologies Required
+Component	Technology
+Frontend	HTML, CSS, JSP
+Backend	Java Servlets
+Database	MySQL
+Server	Apache Tomcat (v9 or v10)
+Build Tool	Maven (optional for VS Code setup)
+📂 Project Structure
+SmartCity/
+├── src/
+│   ├── com.smartcity/
+│   │   ├── CityServlet.java
+│   │   ├── LoginServlet.java
+│   │   ├── RegisterServlet.java
+│   │   └── DBConnection.java
+├── WebContent/
+│   ├── index.jsp
+│   ├── login.jsp
+│   ├── register.jsp
+│   ├── dashboard.jsp
+│   ├── cityinfo.jsp
+│   └── WEB-INF/
+│       └── web.xml
+
+⚙️ 1. DBConnection.java
+package com.smartcity;
+import java.sql.*;
+
+public class DBConnection {
+    private static Connection conn;
+
+    public static Connection getConnection() {
+        try {
+            if (conn == null || conn.isClosed()) {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/smartcitydb", "root", "yourpassword");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return conn;
+    }
+}
+
+🧑‍💼 2. RegisterServlet.java
+package com.smartcity;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class RegisterServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        String name = request.getParameter("name");
+        String email = request.getParameter("email");
+        String password = request.getParameter("password");
+
+        try {
+            Connection con = DBConnection.getConnection();
+            PreparedStatement ps = con.prepareStatement("INSERT INTO users(name, email, password) VALUES (?, ?, ?)");
+            ps.setString(1, name);
+            ps.setString(2, email);
+            ps.setString(3, password);
+            ps.executeUpdate();
+
+            response.sendRedirect("login.jsp");
+        } catch (Exception e) {
+            e.printStackTrace();
+            response.getWriter().println("Error: " + e.getMessage());
+        }
+    }
+}
+
+🔑 3. LoginServlet.java
+package com.smartcity;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class LoginServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        String email = request.getParameter("email");
+        String password = request.getParameter("password");
+
+        try {
+            Connection con = DBConnection.getConnection();
+            PreparedStatement ps = con.prepareStatement("SELECT * FROM users WHERE email=? AND password=?");
+            ps.setString(1, email);
+            ps.setString(2, password);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("username", rs.getString("name"));
+                response.sendRedirect("dashboard.jsp");
+            } else {
+                response.sendRedirect("login.jsp?error=1");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+🏙️ 4. CityServlet.java
+package com.smartcity;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class CityServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        try {
+            Connection con = DBConnection.getConnection();
+            Statement stmt = con.createStatement();
+            ResultSet rs = stmt.executeQuery("SELECT * FROM cityinfo");
+
+            request.setAttribute("data", rs);
+            RequestDispatcher rd = request.getRequestDispatcher("cityinfo.jsp");
+            rd.forward(request, response);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+🌐 5. web.xml (Deployment Descriptor)
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         version="5.0">
+    <servlet>
+        <servlet-name>RegisterServlet</servlet-name>
+        <servlet-class>com.smartcity.RegisterServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>RegisterServlet</servlet-name>
+        <url-pattern>/register</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>com.smartcity.LoginServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>CityServlet</servlet-name>
+        <servlet-class>com.smartcity.CityServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>CityServlet</servlet-name>
+        <url-pattern>/cityinfo</url-pattern>
+    </servlet-mapping>
+</web-app>
+
+🖥️ 6. index.jsp
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart City Guide</title>
+</head>
+<body style="text-align:center;">
+    <h1>Welcome to Smart City Guide 🌆</h1>
+    <p>Explore city details — hotels, restaurants, transport, and more!</p>
+    <a href="register.jsp">Register</a> | <a href="login.jsp">Login</a>
+</body>
+</html>
+
+🧾 7. register.jsp
+<!DOCTYPE html>
+<html>
+<head><title>Register</title></head>
+<body style="text-align:center;">
+<h2>Create Account</h2>
+<form action="register" method="post">
+    <input type="text" name="name" placeholder="Full Name" required><br><br>
+    <input type="email" name="email" placeholder="Email" required><br><br>
+    <input type="password" name="password" placeholder="Password" required><br><br>
+    <button type="submit">Register</button>
+</form>
+</body>
+</html>
+
+🔐 8. login.jsp
+<!DOCTYPE html>
+<html>
+<head><title>Login</title></head>
+<body style="text-align:center;">
+<h2>Login</h2>
+<form action="login" method="post">
+    <input type="email" name="email" placeholder="Email" required><br><br>
+    <input type="password" name="password" placeholder="Password" required><br><br>
+    <button type="submit">Login</button>
+</form>
+
+<% if (request.getParameter("error") != null) { %>
+    <p style="color:red;">Invalid credentials! Try again.</p>
+<% } %>
+</body>
+</html>
+
+🗺️ 9. dashboard.jsp
+<%@ page import="javax.servlet.http.*,javax.servlet.*" %>
+<%
+    HttpSession session1 = request.getSession(false);
+    if (session1 == null || session1.getAttribute("username") == null) {
+        response.sendRedirect("login.jsp");
+    }
+%>
+
+<!DOCTYPE html>
+<html>
+<head><title>Dashboard</title></head>
+<body style="text-align:center;">
+<h2>Welcome, <%= session1.getAttribute("username") %> 👋</h2>
+<p>Choose a module to explore:</p>
+
+<a href="cityinfo">City Information</a> |
+<a href="logout.jsp">Logout</a>
+</body>
+</html>
+
+📜 10. MySQL Database Setup
+CREATE DATABASE smartcitydb;
+USE smartcitydb;
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  email VARCHAR(100) UNIQUE,
+  password VARCHAR(100)
+);
+
+CREATE TABLE cityinfo (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(100),
+  description TEXT,
+  category VARCHAR(50) -- e.g., Hotel, Restaurant, Tourist Place
+);
+
+🧭 How to Run (in VS Code / Tomcat)
+
+Install Apache Tomcat (v9 or v10)
+
+Install VS Code extensions:
+
+Extension Pack for Java
+
+Tomcat for Java
+
+Create folder SmartCity
+
+Place the src and WebContent folders as shown above
+
+Connect MySQL (update DB password in DBConnection.java)
+
+Deploy the project to Tomcat
+
+Visit:
+👉 http://localhost:8080/SmartCity/
+
+🧠 Concepts You’ll Learn
+
+JSP & Servlets
+
+MVC Architecture
+
+Database Connectivity (JDBC + MySQL)
+
+Web Session Management
+
+Dynamic Web Application Deployment

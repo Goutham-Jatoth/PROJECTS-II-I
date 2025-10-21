@@ -1,0 +1,176 @@
+🧮 Project Title: Word Counter
+🧠 Abstract
+
+This Java Swing application counts:
+
+🟢 Number of words
+
+🟢 Number of characters
+
+🟢 Number of sentences
+
+🟢 Number of paragraphs
+
+It takes user input from a text area and shows the result when the "Count Words" button is clicked.
+
+🧰 Technologies Used
+Component	Technology
+Programming Language	Java
+GUI Framework	Swing
+IDE Support	VS Code / IntelliJ / Eclipse
+💻 Full Source Code
+
+📄 WordCounter.java
+
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+
+public class WordCounter extends JFrame implements ActionListener {
+
+    // GUI components
+    JTextArea textArea;
+    JButton countButton, clearButton;
+    JLabel wordLabel, charLabel, sentenceLabel, paraLabel;
+
+    // Constructor
+    public WordCounter() {
+        setTitle("Word Counter Application");
+        setSize(600, 500);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout(10, 10));
+        setLocationRelativeTo(null);
+
+        // Text area
+        textArea = new JTextArea();
+        textArea.setLineWrap(true);
+        textArea.setWrapStyleWord(true);
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        add(scrollPane, BorderLayout.CENTER);
+
+        // Panel for buttons
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new FlowLayout());
+
+        countButton = new JButton("Count Words");
+        clearButton = new JButton("Clear Text");
+
+        countButton.addActionListener(this);
+        clearButton.addActionListener(this);
+
+        buttonPanel.add(countButton);
+        buttonPanel.add(clearButton);
+        add(buttonPanel, BorderLayout.SOUTH);
+
+        // Panel for results
+        JPanel resultPanel = new JPanel();
+        resultPanel.setLayout(new GridLayout(4, 1));
+        resultPanel.setBorder(BorderFactory.createTitledBorder("Result"));
+
+        wordLabel = new JLabel("Words: 0");
+        charLabel = new JLabel("Characters: 0");
+        sentenceLabel = new JLabel("Sentences: 0");
+        paraLabel = new JLabel("Paragraphs: 0");
+
+        resultPanel.add(wordLabel);
+        resultPanel.add(charLabel);
+        resultPanel.add(sentenceLabel);
+        resultPanel.add(paraLabel);
+
+        add(resultPanel, BorderLayout.EAST);
+    }
+
+    // Event handling
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == countButton) {
+            String text = textArea.getText().trim();
+
+            if (text.isEmpty()) {
+                JOptionPane.showMessageDialog(this, "Please enter some text!");
+                return;
+            }
+
+            // Counting logic
+            int charCount = text.length();
+            String[] words = text.split("\\s+");
+            int wordCount = words.length;
+
+            String[] sentences = text.split("[.!?]+");
+            int sentenceCount = sentences.length;
+
+            String[] paragraphs = text.split("\\n+");
+            int paraCount = paragraphs.length;
+
+            // Update labels
+            wordLabel.setText("Words: " + wordCount);
+            charLabel.setText("Characters: " + charCount);
+            sentenceLabel.setText("Sentences: " + sentenceCount);
+            paraLabel.setText("Paragraphs: " + paraCount);
+
+        } else if (e.getSource() == clearButton) {
+            textArea.setText("");
+            wordLabel.setText("Words: 0");
+            charLabel.setText("Characters: 0");
+            sentenceLabel.setText("Sentences: 0");
+            paraLabel.setText("Paragraphs: 0");
+        }
+    }
+
+    // Main method
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new WordCounter().setVisible(true);
+        });
+    }
+}
+
+🧩 Features
+
+✅ Counts number of words
+✅ Counts characters
+✅ Counts sentences
+✅ Counts paragraphs
+✅ User-friendly GUI
+✅ “Clear” button resets everything
+
+🪄 Output Example
+
+Input text:
+
+Java is a high-level programming language.
+It is widely used for building applications.
+
+This is the second paragraph.
+
+
+Output:
+
+Words: 15
+Characters: 90
+Sentences: 2
+Paragraphs: 2
+
+⚙️ How to Run in VS Code
+
+Open VS Code
+
+Create a folder → e.g. WordCounterProject
+
+Inside it, create file: WordCounter.java
+
+Paste the above code.
+
+Press Ctrl + F5 (Run Without Debugging)
+(or right-click → Run Java Program)
+
+A GUI window will appear ✨
+
+🧠 Concepts Learned
+
+Java Swing GUI Design
+
+Event Handling (ActionListener)
+
+String operations and Regex (split())
+
+Layout Managers (BorderLayout, GridLayout, FlowLayout)

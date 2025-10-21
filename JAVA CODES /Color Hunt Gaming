@@ -1,0 +1,160 @@
+🏷️ Project Title: Color Hunt Game (Android)
+🧠 Abstract
+
+Displays text with a color name in a different color
+
+The player must click the color corresponding to the font color, not the text itself
+
+Score increases if clicked correctly, decreases if wrong
+
+Time-limited rounds to reach a target score
+
+Designed to train mind processing and reaction speed
+
+🧰 Technologies Required
+Component	Technology
+Programming Language	Java (Android)
+IDE	Android Studio
+UI	XML Layouts
+Android SDK	min SDK 21+
+📂 Project Structure (Android)
+ColorHunt/
+├── app/src/main/java/com/example/colorhunt/
+│   ├── MainActivity.java
+│   └── GameLogic.java
+├── app/src/main/res/layout/
+│   └── activity_main.xml
+├── app/src/main/res/values/colors.xml
+├── app/src/main/res/values/strings.xml
+
+💻 1. activity_main.xml (UI Layout)
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:gravity="center"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/colorText"
+        android:text="COLOR"
+        android:textSize="40sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="50dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+    <GridLayout
+        android:id="@+id/colorButtonsGrid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:rowCount="2"
+        android:columnCount="2"
+        android:layout_marginTop="20dp"
+        android:layout_gravity="center">
+
+        <Button android:id="@+id/buttonRed" android:text="Red" android:layout_width="150dp" android:layout_height="80dp"/>
+        <Button android:id="@+id/buttonBlue" android:text="Blue" android:layout_width="150dp" android:layout_height="80dp"/>
+        <Button android:id="@+id/buttonGreen" android:text="Green" android:layout_width="150dp" android:layout_height="80dp"/>
+        <Button android:id="@+id/buttonYellow" android:text="Yellow" android:layout_width="150dp" android:layout_height="80dp"/>
+    </GridLayout>
+
+    <TextView
+        android:id="@+id/scoreText"
+        android:text="Score: 0"
+        android:textSize="24sp"
+        android:layout_marginTop="50dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+</LinearLayout>
+
+💻 2. MainActivity.java
+package com.example.colorhunt;
+
+import android.graphics.Color;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import androidx.appcompat.app.AppCompatActivity;
+import java.util.Random;
+
+public class MainActivity extends AppCompatActivity {
+    private TextView colorText, scoreText;
+    private Button[] buttons;
+    private int score = 0;
+    private String[] colorNames = {"Red", "Blue", "Green", "Yellow"};
+    private int[] colorValues = {Color.RED, Color.BLUE, Color.GREEN, Color.YELLOW};
+    private Random random = new Random();
+    private int currentColor;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        colorText = findViewById(R.id.colorText);
+        scoreText = findViewById(R.id.scoreText);
+
+        buttons = new Button[]{
+                findViewById(R.id.buttonRed),
+                findViewById(R.id.buttonBlue),
+                findViewById(R.id.buttonGreen),
+                findViewById(R.id.buttonYellow)
+        };
+
+        for (Button btn : buttons) {
+            btn.setOnClickListener(this::checkAnswer);
+        }
+
+        nextColor();
+    }
+
+    private void nextColor() {
+        int colorIndex = random.nextInt(colorValues.length);
+        int textIndex = random.nextInt(colorNames.length);
+        currentColor = colorValues[colorIndex];
+
+        colorText.setText(colorNames[textIndex]);
+        colorText.setTextColor(currentColor);
+    }
+
+    private void checkAnswer(View view) {
+        Button btn = (Button) view;
+        int clickedColor = Color.BLACK;
+
+        switch (btn.getText().toString()) {
+            case "Red": clickedColor = Color.RED; break;
+            case "Blue": clickedColor = Color.BLUE; break;
+            case "Green": clickedColor = Color.GREEN; break;
+            case "Yellow": clickedColor = Color.YELLOW; break;
+        }
+
+        if(clickedColor == currentColor) {
+            score++;
+        } else {
+            score--;
+        }
+        scoreText.setText("Score: " + score);
+        nextColor();
+    }
+}
+
+🧩 Features
+
+✅ Randomized color text and font color
+✅ Click correct color to gain score
+✅ Lose points on wrong selection
+✅ Fast-paced and mind-training
+✅ Designed for Android phones
+
+⚙️ How to Run
+
+Open Android Studio, create a new project.
+
+Copy MainActivity.java and activity_main.xml.
+
+Run on an Android Emulator or real device.
+
+Tap the buttons matching the font color as quickly as possible.

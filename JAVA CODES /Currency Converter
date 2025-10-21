@@ -1,0 +1,483 @@
+🌐 Project Title:
+
+Currency Converter (USD ↔ INR and More)
+
+📘 Project Structure
+CurrencyConverter/
+├── src/
+│   ├── com.converter/
+│   │   └── CurrencyConverterServlet.java
+│
+├── WebContent/
+│   ├── index.jsp
+│   ├── js/
+│   │   └── converter.js
+│   ├── WEB-INF/
+│   │   └── web.xml
+│
+└── README.md
+
+🧩 1. index.jsp
+
+This is the frontend page where users enter the amount and choose currencies.
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Currency Converter</title>
+    <script src="js/converter.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #eef2f3;
+            text-align: center;
+            margin-top: 100px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            width: 400px;
+            margin: auto;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        input, select, button {
+            padding: 10px;
+            margin: 10px;
+            width: 80%;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🌍 Currency Converter</h2>
+        <input type="number" id="amount" placeholder="Enter amount" required><br>
+        
+        <select id="fromCurrency">
+            <option value="USD">USD - US Dollar</option>
+            <option value="INR">INR - Indian Rupee</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="JPY">JPY - Japanese Yen</option>
+        </select>
+
+        <select id="toCurrency">
+            <option value="INR">INR - Indian Rupee</option>
+            <option value="USD">USD - US Dollar</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="JPY">JPY - Japanese Yen</option>
+        </select>
+
+        <button onclick="convertCurrency()">Convert</button>
+        <div id="result"></div>
+    </div>
+</body>
+</html>
+
+⚙️ 2. converter.js
+
+This JavaScript file sends an AJAX request to the servlet and shows the conversion result without page reload.
+
+function convertCurrency() {
+    var amount = document.getElementById("amount").value;
+    var from = document.getElementById("fromCurrency").value;
+    var to = document.getElementById("toCurrency").value;
+
+    if (amount === "" || amount <= 0) {
+        alert("Please enter a valid amount!");
+        return;
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "CurrencyConverterServlet", true);
+    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xhr.onload = function () {
+        if (xhr.status === 200) {
+            document.getElementById("result").innerHTML = xhr.responseText;
+        }
+    };
+    xhr.send("amount=" + amount + "&from=" + from + "&to=" + to);
+}
+
+☕ 3. CurrencyConverterServlet.java
+
+This Servlet handles the conversion logic.
+(For demo purposes, we use hardcoded rates — in a real project, you can fetch live rates from an API like ExchangeRate API
+).
+
+package com.converter;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+public class CurrencyConverterServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        double amount = Double.parseDouble(request.getParameter("amount"));
+        String from = request.getParameter("from");
+        String to = request.getParameter("to");
+
+        double convertedAmount = convert(from, to, amount);
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<p>Converted Amount: " + convertedAmount + " " + to + "</p>");
+    }
+
+    private double convert(String from, String to, double amount) {
+        // Static conversion rates (for demo)
+        double usdToInr = 83.2;
+        double eurToInr = 89.5;
+        double jpyToInr = 0.56;
+
+        double inrValue = 0;
+
+        // Convert from any currency to INR first
+        switch (from) {
+            case "USD": inrValue = amount * usdToInr; break;
+            case "EUR": inrValue = amount * eurToInr; break;
+            case "JPY": inrValue = amount * jpyToInr; break;
+            case "INR": inrValue = amount; break;
+        }
+
+        double finalAmount = 0;
+        // Convert from INR to target currency
+        switch (to) {
+            case "USD": finalAmount = inrValue / usdToInr; break;
+            case "EUR": finalAmount = inrValue / eurToInr; break;
+            case "JPY": finalAmount = inrValue / jpyToInr; break;
+            case "INR": finalAmount = inrValue; break;
+        }
+
+        return Math.round(finalAmount * 100.0) / 100.0;
+    }
+}
+
+🗂️ 4. web.xml
+
+This file maps the servlet to a URL pattern.
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://jakarta.ee/xml/ns/jakartaee
+         http://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <servlet>
+        <servlet-name>CurrencyConverterServlet</servlet-name>
+        <servlet-class>com.converter.CurrencyConverterServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CurrencyConverterServlet</servlet-name>
+        <url-pattern>/CurrencyConverterServlet</url-pattern>
+    </servlet-mapping>
+</web-app>
+
+⚡ Technologies Used
+
+Java 17+
+
+Servlets and JSP
+
+AJAX (XMLHttpRequest)
+
+HTML, CSS, JavaScript
+
+Apache Tomcat (v9 or v10)
+
+Eclipse IDE or IntelliJ IDEA
+
+🧠 How It Works
+
+User enters amount and selects currencies on index.jsp.
+
+JavaScript (AJAX) sends request to the Servlet.
+
+Servlet performs conversion and sends back the result.
+
+Result is displayed dynamically on the same page.
+
+🚀 Deployment Steps
+
+Open Eclipse → Create Dynamic Web Project → name it CurrencyConverter.
+
+Copy files into correct folders as per structure.
+
+Add servlet to web.xml.
+
+Run the project on Tomcat Server.
+
+Open in browser →
+👉 http://localhost:8080/CurrencyConverter/index.jsp
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+🧰 Step-by-Step Setup (for VS Code)
+🪄 1️⃣ Install the Required Software
+
+✅ 1. Java Development Kit (JDK 17 or higher)
+Download and install from:
+👉 https://www.oracle.com/java/technologies/downloads/
+
+To verify:
+
+java -version
+
+
+✅ 2. Apache Tomcat 9 or 10
+Download from:
+👉 https://tomcat.apache.org/download-10.cgi
+
+After extracting, note down your Tomcat installation path (e.g. C:\apache-tomcat-10.1.30)
+
+✅ 3. VS Code Extensions
+Install the following from the Extensions Marketplace:
+
+Extension Pack for Java (by Microsoft)
+
+Tomcat for Java (by Microsoft)
+
+Debugger for Java
+
+Language Support for Java(TM) by Red Hat
+
+🧩 2️⃣ Project Folder Structure in VS Code
+
+Create a folder called CurrencyConverter anywhere (like on Desktop):
+
+CurrencyConverter/
+├── src/
+│   ├── com/converter/
+│   │   └── CurrencyConverterServlet.java
+│
+├── WebContent/
+│   ├── index.jsp
+│   ├── js/
+│   │   └── converter.js
+│   └── WEB-INF/
+│       └── web.xml
+
+☕ 3️⃣ Java Servlet File
+
+📄 src/com/converter/CurrencyConverterServlet.java
+
+package com.converter;
+
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+public class CurrencyConverterServlet extends HttpServlet {
+
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+            throws ServletException, IOException {
+
+        double amount = Double.parseDouble(request.getParameter("amount"));
+        String from = request.getParameter("from");
+        String to = request.getParameter("to");
+
+        double convertedAmount = convert(from, to, amount);
+
+        response.setContentType("text/html");
+        PrintWriter out = response.getWriter();
+        out.println("<p>Converted Amount: " + convertedAmount + " " + to + "</p>");
+    }
+
+    private double convert(String from, String to, double amount) {
+        double usdToInr = 83.2;
+        double eurToInr = 89.5;
+        double jpyToInr = 0.56;
+
+        double inrValue = 0;
+        switch (from) {
+            case "USD": inrValue = amount * usdToInr; break;
+            case "EUR": inrValue = amount * eurToInr; break;
+            case "JPY": inrValue = amount * jpyToInr; break;
+            case "INR": inrValue = amount; break;
+        }
+
+        double finalAmount = 0;
+        switch (to) {
+            case "USD": finalAmount = inrValue / usdToInr; break;
+            case "EUR": finalAmount = inrValue / eurToInr; break;
+            case "JPY": finalAmount = inrValue / jpyToInr; break;
+            case "INR": finalAmount = inrValue; break;
+        }
+
+        return Math.round(finalAmount * 100.0) / 100.0;
+    }
+}
+
+🧠 4️⃣ JSP Frontend
+
+📄 WebContent/index.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Currency Converter</title>
+    <script src="js/converter.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #eef2f3;
+            text-align: center;
+            margin-top: 100px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            width: 400px;
+            margin: auto;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        input, select, button {
+            padding: 10px;
+            margin: 10px;
+            width: 80%;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🌍 Currency Converter</h2>
+        <input type="number" id="amount" placeholder="Enter amount" required><br>
+        
+        <select id="fromCurrency">
+            <option value="USD">USD - US Dollar</option>
+            <option value="INR">INR - Indian Rupee</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="JPY">JPY - Japanese Yen</option>
+        </select>
+
+        <select id="toCurrency">
+            <option value="INR">INR - Indian Rupee</option>
+            <option value="USD">USD - US Dollar</option>
+            <option value="EUR">EUR - Euro</option>
+            <option value="JPY">JPY - Japanese Yen</option>
+        </select>
+
+        <button onclick="convertCurrency()">Convert</button>
+        <div id="result"></div>
+    </div>
+</body>
+</html>
+
+
+📄 WebContent/js/converter.js
+
+function convertCurrency() {
+    var amount = document.getElementById("amount").value;
+    var from = document.getElementById("fromCurrency").value;
+    var to = document.getElementById("toCurrency").value;
+
+    if (amount === "" || amount <= 0) {
+        alert("Please enter a valid amount!");
+        return;
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "CurrencyConverterServlet", true);
+    xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+    xhr.onload = function () {
+        if (xhr.status === 200) {
+            document.getElementById("result").innerHTML = xhr.responseText;
+        }
+    };
+    xhr.send("amount=" + amount + "&from=" + from + "&to=" + to);
+}
+
+
+📄 WebContent/WEB-INF/web.xml
+
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://jakarta.ee/xml/ns/jakartaee
+         http://jakarta.ee/xml/ns/jakartaee/web-app_5_0.xsd"
+         version="5.0">
+
+    <servlet>
+        <servlet-name>CurrencyConverterServlet</servlet-name>
+        <servlet-class>com.converter.CurrencyConverterServlet</servlet-class>
+    </servlet>
+
+    <servlet-mapping>
+        <servlet-name>CurrencyConverterServlet</servlet-name>
+        <url-pattern>/CurrencyConverterServlet</url-pattern>
+    </servlet-mapping>
+</web-app>
+
+🧑‍💻 5️⃣ Compile & Run in VS Code
+✅ A. Configure Tomcat
+
+In VS Code, press Ctrl+Shift+P → Tomcat: Add Tomcat Server
+
+Browse to your Tomcat installation folder.
+
+The server will appear in the TOMCAT SERVERS panel (bottom left).
+
+✅ B. Deploy Project
+
+Right-click on your CurrencyConverter folder → Add to Tomcat Server.
+
+VS Code will automatically deploy it.
+
+✅ C. Run the Project
+
+Once deployed, right-click the project in Tomcat panel → Start.
+Then open your browser and go to:
+👉 http://localhost:8080/CurrencyConverter/index.jsp
+
+You should see your Currency Converter running 🎉
+
+🧠 Optional — Real-Time Currency Rates

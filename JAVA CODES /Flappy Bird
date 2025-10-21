@@ -1,0 +1,214 @@
+🏹 Project Title: Flappy Bird Game
+🧠 Abstract
+
+Control a bird to fly between pipes/hurdles
+
+Score points each time the bird passes a pipe
+
+Game ends on collision with pipe or ground
+
+Uses Swing for GUI, Timer for game loop
+
+🧰 Technologies Required
+Component	Technology
+Programming Language	Java
+GUI Framework	Swing
+Graphics	AWT
+IDE	VS Code / Eclipse / IntelliJ
+📂 Project Structure
+FlappyBird/
+├── src/
+│   ├── FlappyBird.java
+│   ├── Bird.java
+│   └── Pipe.java
+
+💻 1. Bird.java
+import java.awt.*;
+
+public class Bird {
+    public int x, y;
+    public int width = 20, height = 20;
+    public int velocity = 0;
+    public int gravity = 1;
+
+    public Bird(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public void jump() {
+        velocity = -10;
+    }
+
+    public void move() {
+        velocity += gravity;
+        y += velocity;
+    }
+
+    public Rectangle getBounds() {
+        return new Rectangle(x, y, width, height);
+    }
+
+    public void draw(Graphics g) {
+        g.setColor(Color.RED);
+        g.fillOval(x, y, width, height);
+    }
+}
+
+💻 2. Pipe.java
+import java.awt.*;
+import java.util.Random;
+
+public class Pipe {
+    public int x, y, width = 40, height;
+    public int gap = 100;
+    public int speed = 5;
+
+    public Pipe(int startX) {
+        x = startX;
+        Random rand = new Random();
+        height = 50 + rand.nextInt(200);
+        y = 0;
+    }
+
+    public void move() {
+        x -= speed;
+    }
+
+    public boolean isOffScreen() {
+        return x + width < 0;
+    }
+
+    public Rectangle getTopBounds() {
+        return new Rectangle(x, y, width, height);
+    }
+
+    public Rectangle getBottomBounds() {
+        return new Rectangle(x, height + gap, width, 600 - height - gap);
+    }
+
+    public void draw(Graphics g) {
+        g.setColor(Color.GREEN);
+        g.fillRect(x, y, width, height); // top pipe
+        g.fillRect(x, height + gap, width, 600 - height - gap); // bottom pipe
+    }
+}
+
+💻 3. FlappyBird.java (Main Class)
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+
+public class FlappyBird extends JPanel implements ActionListener, KeyListener {
+    private Bird bird;
+    private ArrayList<Pipe> pipes;
+    private Timer timer;
+    private int score = 0;
+
+    public FlappyBird() {
+        bird = new Bird(100, 300);
+        pipes = new ArrayList<>();
+        pipes.add(new Pipe(600));
+        timer = new Timer(20, this);
+        timer.start();
+        setFocusable(true);
+        addKeyListener(this);
+    }
+
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        g.setColor(Color.CYAN);
+        g.fillRect(0,0,800,600); // background
+
+        bird.draw(g);
+
+        for (Pipe pipe : pipes) {
+            pipe.draw(g);
+        }
+
+        g.setColor(Color.BLACK);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Score: " + score, 10, 20);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        bird.move();
+
+        if (bird.y < 0) bird.y = 0;
+        if (bird.y > 580) {
+            gameOver();
+        }
+
+        ArrayList<Pipe> toRemove = new ArrayList<>();
+        for (Pipe pipe : pipes) {
+            pipe.move();
+            if (pipe.isOffScreen()) {
+                toRemove.add(pipe);
+                pipes.add(new Pipe(800));
+            }
+            if (pipe.getTopBounds().intersects(bird.getBounds()) || 
+                pipe.getBottomBounds().intersects(bird.getBounds())) {
+                gameOver();
+            }
+            if (pipe.x + pipe.width == bird.x) {
+                score++;
+            }
+        }
+        pipes.removeAll(toRemove);
+
+        repaint();
+    }
+
+    public void gameOver() {
+        timer.stop();
+        JOptionPane.showMessageDialog(this, "Game Over! Score: " + score);
+        System.exit(0);
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if(e.getKeyCode() == KeyEvent.VK_SPACE) {
+            bird.jump();
+        }
+    }
+    @Override
+    public void keyReleased(KeyEvent e) {}
+    @Override
+    public void keyTyped(KeyEvent e) {}
+
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Flappy Bird Game");
+        FlappyBird game = new FlappyBird();
+        frame.add(game);
+        frame.setSize(800,600);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
+    }
+}
+
+🧩 Features
+
+✅ Spacebar-controlled bird flight
+✅ Dynamic pipe generation
+✅ Collision detection with pipes and ground
+✅ Score tracking
+✅ Simple Swing GUI with animated game loop
+
+⚙️ How to Run in VS Code
+
+Create a folder FlappyBird and save all .java files.
+
+Compile all files:
+
+javac *.java
+
+
+Run main class:
+
+java FlappyBird
+
+
+Press Spacebar to make the bird fly.

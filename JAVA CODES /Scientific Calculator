@@ -1,0 +1,177 @@
+🧠 Project Title: Scientific Calculator
+Abstract
+
+Performs basic arithmetic: +, -, ×, ÷
+
+Performs scientific operations: sin, cos, tan, log, sqrt, power, etc.
+
+GUI implemented using Java Swing
+
+Uses OOP concepts with action handling
+
+🧰 Technologies Required
+Component	Technology
+Programming Language	Java
+GUI Framework	Swing
+Graphics	AWT
+IDE	VS Code / Eclipse / IntelliJ
+📂 Project Structure
+ScientificCalculator/
+├── src/
+│   └── ScientificCalculator.java
+
+💻 1. ScientificCalculator.java
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.text.DecimalFormat;
+
+public class ScientificCalculator extends JFrame implements ActionListener {
+    private JTextField display;
+    private String operator;
+    private double firstOperand;
+    private boolean isNewInput = true;
+
+    public ScientificCalculator() {
+        setTitle("Scientific Calculator");
+        setSize(400,600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+        setLocationRelativeTo(null);
+
+        display = new JTextField("0");
+        display.setEditable(false);
+        display.setFont(new Font("Arial", Font.BOLD, 24));
+        display.setHorizontalAlignment(SwingConstants.RIGHT);
+        add(display, BorderLayout.NORTH);
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.setLayout(new GridLayout(6,4,5,5));
+
+        String[] buttons = {
+            "7","8","9","/",
+            "4","5","6","*",
+            "1","2","3","-",
+            "0",".","=","+",
+            "sin","cos","tan","log",
+            "sqrt","^","C","CE"
+        };
+
+        for(String text : buttons) {
+            JButton btn = new JButton(text);
+            btn.setFont(new Font("Arial", Font.BOLD, 18));
+            btn.addActionListener(this);
+            buttonPanel.add(btn);
+        }
+
+        add(buttonPanel, BorderLayout.CENTER);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        String command = e.getActionCommand();
+
+        try {
+            switch (command) {
+                case "C":
+                    display.setText("0");
+                    firstOperand = 0;
+                    operator = "";
+                    isNewInput = true;
+                    break;
+                case "CE":
+                    display.setText("0");
+                    isNewInput = true;
+                    break;
+                case "+":
+                case "-":
+                case "*":
+                case "/":
+                case "^":
+                    firstOperand = Double.parseDouble(display.getText());
+                    operator = command;
+                    isNewInput = true;
+                    break;
+                case "=":
+                    double secondOperand = Double.parseDouble(display.getText());
+                    double result = 0;
+                    switch(operator) {
+                        case "+": result = firstOperand + secondOperand; break;
+                        case "-": result = firstOperand - secondOperand; break;
+                        case "*": result = firstOperand * secondOperand; break;
+                        case "/": result = firstOperand / secondOperand; break;
+                        case "^": result = Math.pow(firstOperand, secondOperand); break;
+                    }
+                    display.setText(formatResult(result));
+                    isNewInput = true;
+                    break;
+                case "sin":
+                    display.setText(formatResult(Math.sin(Math.toRadians(Double.parseDouble(display.getText())))));
+                    isNewInput = true;
+                    break;
+                case "cos":
+                    display.setText(formatResult(Math.cos(Math.toRadians(Double.parseDouble(display.getText())))));
+                    isNewInput = true;
+                    break;
+                case "tan":
+                    display.setText(formatResult(Math.tan(Math.toRadians(Double.parseDouble(display.getText())))));
+                    isNewInput = true;
+                    break;
+                case "log":
+                    display.setText(formatResult(Math.log10(Double.parseDouble(display.getText()))));
+                    isNewInput = true;
+                    break;
+                case "sqrt":
+                    display.setText(formatResult(Math.sqrt(Double.parseDouble(display.getText()))));
+                    isNewInput = true;
+                    break;
+                default:
+                    if(isNewInput) {
+                        display.setText(command);
+                        isNewInput = false;
+                    } else {
+                        display.setText(display.getText() + command);
+                    }
+            }
+        } catch (Exception ex) {
+            display.setText("Error");
+            isNewInput = true;
+        }
+    }
+
+    private String formatResult(double value) {
+        DecimalFormat df = new DecimalFormat("0.######");
+        return df.format(value);
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new ScientificCalculator().setVisible(true);
+        });
+    }
+}
+
+🧩 Features
+
+✅ Basic arithmetic (+, -, *, /)
+✅ Scientific operations: sin, cos, tan, log, sqrt, power
+✅ Clear (C) and Clear Entry (CE)
+✅ Decimal input support
+✅ GUI with Swing
+✅ Real-time calculation handling
+
+⚙️ How to Run
+
+Save ScientificCalculator.java in a folder.
+
+Compile:
+
+javac ScientificCalculator.java
+
+
+Run:
+
+java ScientificCalculator
+
+
+Click buttons or enter numbers for calculations.

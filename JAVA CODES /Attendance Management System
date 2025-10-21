@@ -1,0 +1,415 @@
+🎓 Project Title:
+
+Attendance Management System (AMS)
+
+🧱 Technologies Used
+Component	Technology
+Frontend	JSP, HTML, CSS, JavaScript
+Backend	Java Servlets, JDBC
+Architecture	MVC (Model-View-Controller)
+Database	MySQL
+Server	Apache Tomcat
+Build Tool	Maven (optional for VS Code; can also run manually)
+🗂️ Project Structure
+AttendanceManagementSystem/
+├── src/
+│   ├── com/ams/controller/
+│   │   ├── AdminServlet.java
+│   │   ├── FacultyServlet.java
+│   │   └── StudentServlet.java
+│   │
+│   ├── com/ams/dao/
+│   │   ├── DBConnection.java
+│   │   └── AttendanceDAO.java
+│   │
+│   ├── com/ams/model/
+│   │   ├── Attendance.java
+│   │   ├── Student.java
+│   │   └── Faculty.java
+│
+├── WebContent/
+│   ├── index.jsp
+│   ├── adminDashboard.jsp
+│   ├── facultyDashboard.jsp
+│   ├── studentDashboard.jsp
+│   ├── login.jsp
+│   ├── addStudent.jsp
+│   ├── viewAttendance.jsp
+│   ├── WEB-INF/
+│   │   └── web.xml
+│
+└── database/
+    └── ams.sql
+
+💾 Database (MySQL)
+
+📄 ams.sql
+
+CREATE DATABASE amsdb;
+USE amsdb;
+
+CREATE TABLE student (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    roll_no VARCHAR(20),
+    email VARCHAR(100),
+    password VARCHAR(100)
+);
+
+CREATE TABLE faculty (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    email VARCHAR(100),
+    password VARCHAR(100)
+);
+
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT,
+    date DATE,
+    status VARCHAR(10),
+    FOREIGN KEY (student_id) REFERENCES student(id)
+);
+
+⚙️ Database Connection
+
+📄 DBConnection.java
+
+package com.ams.dao;
+import java.sql.*;
+
+public class DBConnection {
+    private static Connection conn = null;
+
+    public static Connection getConnection() {
+        try {
+            if (conn == null) {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                conn = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/amsdb", "root", "yourpassword");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return conn;
+    }
+}
+
+
+🔹 Replace "yourpassword" with your MySQL root password.
+
+🧩 Model Classes
+
+📄 Student.java
+
+package com.ams.model;
+
+public class Student {
+    private int id;
+    private String name;
+    private String rollNo;
+    private String email;
+    private String password;
+
+    // Getters & Setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getRollNo() { return rollNo; }
+    public void setRollNo(String rollNo) { this.rollNo = rollNo; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+}
+
+
+📄 Faculty.java
+
+package com.ams.model;
+
+public class Faculty {
+    private int id;
+    private String name;
+    private String email;
+    private String password;
+
+    // Getters & Setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(String name) { this.name = name; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+
+    public String getPassword() { return password; }
+    public void setPassword(String password) { this.password = password; }
+}
+
+
+📄 Attendance.java
+
+package com.ams.model;
+
+import java.util.Date;
+
+public class Attendance {
+    private int id;
+    private int studentId;
+    private Date date;
+    private String status;
+
+    // Getters & Setters
+    public int getId() { return id; }
+    public void setId(int id) { this.id = id; }
+
+    public int getStudentId() { return studentId; }
+    public void setStudentId(int studentId) { this.studentId = studentId; }
+
+    public Date getDate() { return date; }
+    public void setDate(Date date) { this.date = date; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+}
+
+🗄️ DAO Class
+
+📄 AttendanceDAO.java
+
+package com.ams.dao;
+import java.sql.*;
+import java.util.*;
+import com.ams.model.Attendance;
+
+public class AttendanceDAO {
+    Connection conn = DBConnection.getConnection();
+
+    public void markAttendance(int studentId, String status) {
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO attendance(student_id, date, status) VALUES (?, CURDATE(), ?)");
+            ps.setInt(1, studentId);
+            ps.setString(2, status);
+            ps.executeUpdate();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public List<Attendance> getAttendanceByStudent(int studentId) {
+        List<Attendance> list = new ArrayList<>();
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT * FROM attendance WHERE student_id = ?");
+            ps.setInt(1, studentId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Attendance a = new Attendance();
+                a.setId(rs.getInt("id"));
+                a.setStudentId(rs.getInt("student_id"));
+                a.setDate(rs.getDate("date"));
+                a.setStatus(rs.getString("status"));
+                list.add(a);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+}
+
+🧠 Controller (Servlets)
+
+📄 AdminServlet.java
+
+package com.ams.controller;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.io.*;
+
+public class AdminServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        String action = request.getParameter("action");
+
+        if ("addStudent".equals(action)) {
+            request.getRequestDispatcher("addStudent.jsp").forward(request, response);
+        } else if ("viewAttendance".equals(action)) {
+            request.getRequestDispatcher("viewAttendance.jsp").forward(request, response);
+        } else {
+            response.sendRedirect("adminDashboard.jsp");
+        }
+    }
+}
+
+
+📄 FacultyServlet.java
+
+package com.ams.controller;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.io.*;
+import com.ams.dao.AttendanceDAO;
+
+public class FacultyServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        int studentId = Integer.parseInt(request.getParameter("studentId"));
+        String status = request.getParameter("status");
+
+        AttendanceDAO dao = new AttendanceDAO();
+        dao.markAttendance(studentId, status);
+
+        request.setAttribute("message", "Attendance marked successfully!");
+        request.getRequestDispatcher("facultyDashboard.jsp").forward(request, response);
+    }
+}
+
+
+📄 StudentServlet.java
+
+package com.ams.controller;
+
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.io.*;
+import com.ams.dao.AttendanceDAO;
+import java.util.*;
+
+public class StudentServlet extends HttpServlet {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response)
+        throws ServletException, IOException {
+
+        int studentId = Integer.parseInt(request.getParameter("id"));
+        AttendanceDAO dao = new AttendanceDAO();
+        request.setAttribute("records", dao.getAttendanceByStudent(studentId));
+        request.getRequestDispatcher("viewAttendance.jsp").forward(request, response);
+    }
+}
+
+🧩 JSP Pages
+
+📄 index.jsp
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Attendance Management System</title>
+</head>
+<body style="text-align:center; font-family:sans-serif;">
+    <h2>Welcome to Attendance Management System</h2>
+    <a href="login.jsp">Login</a>
+</body>
+</html>
+
+
+📄 login.jsp
+
+<!DOCTYPE html>
+<html>
+<head><title>Login</title></head>
+<body style="text-align:center;">
+<h2>Login</h2>
+<form action="AdminServlet" method="post">
+    <input type="text" name="username" placeholder="Username" required><br><br>
+    <input type="password" name="password" placeholder="Password" required><br><br>
+    <select name="role">
+        <option value="admin">Admin</option>
+        <option value="faculty">Faculty</option>
+        <option value="student">Student</option>
+    </select><br><br>
+    <input type="submit" value="Login">
+</form>
+</body>
+</html>
+
+
+📄 adminDashboard.jsp
+
+<h2>Admin Dashboard</h2>
+<form action="AdminServlet" method="post">
+    <button name="action" value="addStudent">Add Student</button>
+    <button name="action" value="viewAttendance">View Attendance</button>
+</form>
+
+🗂️ web.xml
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee"
+         version="5.0">
+
+    <servlet>
+        <servlet-name>AdminServlet</servlet-name>
+        <servlet-class>com.ams.controller.AdminServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminServlet</servlet-name>
+        <url-pattern>/AdminServlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>FacultyServlet</servlet-name>
+        <servlet-class>com.ams.controller.FacultyServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>FacultyServlet</servlet-name>
+        <url-pattern>/FacultyServlet</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>StudentServlet</servlet-name>
+        <servlet-class>com.ams.controller.StudentServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>StudentServlet</servlet-name>
+        <url-pattern>/StudentServlet</url-pattern>
+    </servlet-mapping>
+
+</web-app>
+
+🚀 Run in VS Code
+✅ Step 1: Prerequisites
+
+JDK 17+
+
+MySQL installed and database imported (amsdb)
+
+Tomcat 10 installed
+
+VS Code extensions:
+
+Extension Pack for Java
+
+Tomcat for Java
+
+✅ Step 2: Setup
+
+Open folder AttendanceManagementSystem in VS Code.
+
+Right-click → Add to Tomcat Server.
+
+Update DB username/password in DBConnection.java.
+
+Start the server.
+
+✅ Step 3: Run
+
+Go to browser →
+👉 http://localhost:8080/AttendanceManagementSystem/index.jsp
+
+🧠 Features Summary
+Role	Capabilities
+Admin	Add/Delete Students, View Attendance
+Faculty	Mark Attendance
+Student	View Own Attendance

@@ -1,0 +1,257 @@
+🛍️ Project Title: Supermarket Billing System
+🧠 Abstract
+
+The system allows:
+
+Recording products, categories, and customers
+
+Generating bills automatically with tax/GST
+
+Admin module to add/update/delete products
+
+Print bill functionality
+
+Database-backed for persistence
+
+It uses:
+
+Java Servlets & JSP for web interface
+
+MySQL for storing products, users, orders
+
+MVC Architecture
+
+🧰 Technologies Required
+Component	Technology
+Frontend	HTML, CSS, JSP
+Backend	Java Servlets
+Database	MySQL
+Server	Apache Tomcat
+IDE	VS Code / Eclipse / IntelliJ
+📂 Project Structure
+SupermarketBilling/
+├── src/
+│   └── com.billing/
+│       ├── DBConnection.java
+│       ├── LoginServlet.java
+│       ├── ProductServlet.java
+│       ├── BillServlet.java
+├── WebContent/
+│   ├── index.jsp
+│   ├── login.jsp
+│   ├── dashboard.jsp
+│   ├── products.jsp
+│   ├── generateBill.jsp
+│   └── WEB-INF/web.xml
+
+⚙️ 1. DBConnection.java
+package com.billing;
+import java.sql.*;
+
+public class DBConnection {
+    private static Connection conn;
+
+    public static Connection getConnection() {
+        try {
+            if (conn == null || conn.isClosed()) {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                conn = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/supermarketdb", "root", "yourpassword");
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+        return conn;
+    }
+}
+
+🧑‍💼 2. LoginServlet.java
+package com.billing;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class LoginServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        String username = request.getParameter("username");
+        String password = request.getParameter("password");
+
+        try {
+            Connection con = DBConnection.getConnection();
+            PreparedStatement ps = con.prepareStatement("SELECT * FROM admin WHERE username=? AND password=?");
+            ps.setString(1, username);
+            ps.setString(2, password);
+            ResultSet rs = ps.executeQuery();
+
+            if (rs.next()) {
+                HttpSession session = request.getSession();
+                session.setAttribute("username", username);
+                response.sendRedirect("dashboard.jsp");
+            } else {
+                response.sendRedirect("login.jsp?error=1");
+            }
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+📦 3. ProductServlet.java
+package com.billing;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+
+public class ProductServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        String name = request.getParameter("name");
+        String category = request.getParameter("category");
+        double price = Double.parseDouble(request.getParameter("price"));
+
+        try {
+            Connection con = DBConnection.getConnection();
+            PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO products(name, category, price) VALUES(?,?,?)");
+            ps.setString(1, name);
+            ps.setString(2, category);
+            ps.setDouble(3, price);
+            ps.executeUpdate();
+
+            response.sendRedirect("products.jsp?success=1");
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+🧾 4. BillServlet.java
+package com.billing;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.sql.*;
+import java.util.*;
+
+public class BillServlet extends HttpServlet {
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+        String[] productIds = request.getParameterValues("productId");
+        double total = 0.0;
+        try {
+            Connection con = DBConnection.getConnection();
+            for (String id : productIds) {
+                PreparedStatement ps = con.prepareStatement("SELECT price FROM products WHERE id=?");
+                ps.setInt(1, Integer.parseInt(id));
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) total += rs.getDouble("price");
+            }
+            double gst = total * 0.18; // 18% GST
+            double finalAmount = total + gst;
+
+            request.setAttribute("total", total);
+            request.setAttribute("gst", gst);
+            request.setAttribute("finalAmount", finalAmount);
+            RequestDispatcher rd = request.getRequestDispatcher("generateBill.jsp");
+            rd.forward(request, response);
+        } catch(Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+🌐 5. web.xml
+<web-app xmlns="http://jakarta.ee/xml/ns/jakartaee" version="5.0">
+    <servlet>
+        <servlet-name>LoginServlet</servlet-name>
+        <servlet-class>com.billing.LoginServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>LoginServlet</servlet-name>
+        <url-pattern>/login</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>ProductServlet</servlet-name>
+        <servlet-class>com.billing.ProductServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>ProductServlet</servlet-name>
+        <url-pattern>/addProduct</url-pattern>
+    </servlet-mapping>
+
+    <servlet>
+        <servlet-name>BillServlet</servlet-name>
+        <servlet-class>com.billing.BillServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>BillServlet</servlet-name>
+        <url-pattern>/generateBill</url-pattern>
+    </servlet-mapping>
+</web-app>
+
+🖥️ 6. Sample index.jsp
+<!DOCTYPE html>
+<html>
+<head><title>Supermarket Billing System</title></head>
+<body style="text-align:center;">
+<h1>Welcome to Supermarket Billing System</h1>
+<a href="login.jsp">Admin Login</a>
+</body>
+</html>
+
+🏷️ 7. Sample login.jsp
+<!DOCTYPE html>
+<html>
+<head><title>Login</title></head>
+<body style="text-align:center;">
+<h2>Admin Login</h2>
+<form action="login" method="post">
+    <input type="text" name="username" placeholder="Username" required><br><br>
+    <input type="password" name="password" placeholder="Password" required><br><br>
+    <button type="submit">Login</button>
+</form>
+<% if(request.getParameter("error") != null) { %>
+<p style="color:red;">Invalid credentials!</p>
+<% } %>
+</body>
+</html>
+
+🗄️ MySQL Database Setup
+CREATE DATABASE supermarketdb;
+USE supermarketdb;
+
+CREATE TABLE admin (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50),
+    password VARCHAR(50)
+);
+
+INSERT INTO admin(username, password) VALUES('admin','admin123');
+
+CREATE TABLE products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    category VARCHAR(50),
+    price DOUBLE
+);
+
+🧩 Features
+
+✅ Add/View products
+✅ Generate bills with GST
+✅ Print bills (JSP can be used for printing)
+✅ Admin authentication
+✅ Database storage with MySQL
+
+⚙️ How to Run
+
+Install MySQL, create supermarketdb.
+
+Add Tomcat Server to VS Code.
+
+Place src and WebContent in project folder.
+
+Deploy to Tomcat.
+
+Access http://localhost:8080/SupermarketBilling/.

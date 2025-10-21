@@ -1,0 +1,152 @@
+🏷️ Project Title: Memory Game – Flipping Tiles
+🧠 Abstract
+
+Game board contains even number of tiles, each tile has a matching pair
+
+Tiles start face down
+
+Flip tiles one by one; matched tiles disappear
+
+Unmatched tiles flip back
+
+Uses Java Swing, ArrayLists, and OOP concepts
+
+🧰 Technologies Required
+Component	Technology
+Programming Language	Java
+GUI Framework	Swing
+Collections	ArrayList
+IDE	VS Code / Eclipse / IntelliJ
+📂 Project Structure
+MemoryGame/
+├── src/
+│   ├── MemoryGame.java
+│   └── TileButton.java
+
+💻 1. TileButton.java (Custom Tile)
+import javax.swing.JButton;
+
+public class TileButton extends JButton {
+    private int value;
+    private boolean matched = false;
+
+    public TileButton(int value) {
+        this.value = value;
+        setText("");
+    }
+
+    public int getValue() { return value; }
+
+    public void reveal() { setText(String.valueOf(value)); }
+
+    public void hideTile() { setText(""); }
+
+    public void setMatched(boolean matched) { this.matched = matched; }
+
+    public boolean isMatched() { return matched; }
+}
+
+💻 2. MemoryGame.java (Main Class)
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.*;
+
+public class MemoryGame extends JFrame implements ActionListener {
+    private ArrayList<TileButton> tiles = new ArrayList<>();
+    private TileButton firstSelected = null;
+    private TileButton secondSelected = null;
+    private int totalPairs;
+    private int matchedPairs = 0;
+
+    public MemoryGame(int numPairs) {
+        totalPairs = numPairs;
+        setTitle("Memory Game");
+        setSize(600,600);
+        setLayout(new GridLayout(4, numPairs/2));
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
+
+        ArrayList<Integer> numbers = new ArrayList<>();
+        for(int i=1;i<=numPairs;i++) {
+            numbers.add(i);
+            numbers.add(i); // pair
+        }
+        Collections.shuffle(numbers);
+
+        for(int val : numbers) {
+            TileButton btn = new TileButton(val);
+            btn.setFont(new Font("Arial", Font.BOLD, 24));
+            btn.addActionListener(this);
+            tiles.add(btn);
+            add(btn);
+        }
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        TileButton clicked = (TileButton) e.getSource();
+
+        if(clicked.isMatched() || clicked == firstSelected) return;
+
+        clicked.reveal();
+
+        if(firstSelected == null) {
+            firstSelected = clicked;
+        } else {
+            secondSelected = clicked;
+            Timer timer = new Timer(500, evt -> checkMatch());
+            timer.setRepeats(false);
+            timer.start();
+        }
+    }
+
+    private void checkMatch() {
+        if(firstSelected.getValue() == secondSelected.getValue()) {
+            firstSelected.setMatched(true);
+            secondSelected.setMatched(true);
+            matchedPairs++;
+            if(matchedPairs == totalPairs) {
+                JOptionPane.showMessageDialog(this,"Congratulations! You matched all tiles!");
+                System.exit(0);
+            }
+        } else {
+            firstSelected.hideTile();
+            secondSelected.hideTile();
+        }
+        firstSelected = null;
+        secondSelected = null;
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            int pairs = 8; // total pairs = 8 -> 16 tiles
+            new MemoryGame(pairs).setVisible(true);
+        });
+    }
+}
+
+🧩 Features
+
+✅ Grid-based tile layout
+✅ Flip tiles by clicking
+✅ Check for matching pairs
+✅ Timer-based auto-hide for unmatched tiles
+✅ Win message after all pairs matched
+✅ Swing GUI with event-driven logic
+
+⚙️ How to Run in VS Code
+
+Save TileButton.java and MemoryGame.java in one folder.
+
+Compile all files:
+
+javac *.java
+
+
+Run main class:
+
+java MemoryGame
+
+
+Click tiles to reveal and match pairs.

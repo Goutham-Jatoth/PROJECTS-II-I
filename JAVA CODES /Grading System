@@ -1,0 +1,226 @@
+🏫 Project Title: Grading System in Java
+🧠 Abstract
+
+This Grading System allows:
+
+Adding students and their marks
+
+Calculating total, average, and grade
+
+Ranking students based on marks
+
+Viewing student records
+
+Storing data in MySQL database
+
+It uses:
+
+Java Swing for GUI
+
+JDBC for MySQL database
+
+Object-Oriented Programming
+
+🧰 Technologies Required
+Component	Technology
+Programming Language	Java
+GUI Framework	Swing
+Database	MySQL
+IDE	VS Code / Eclipse / IntelliJ
+📂 Project Structure
+GradingSystem/
+├── src/
+│   ├── GradingSystemMain.java
+│   ├── Student.java
+│   └── DBConnection.java
+├── lib/   // MySQL Connector Jar
+
+💻 1. DBConnection.java
+import java.sql.*;
+
+public class DBConnection {
+    private static Connection conn;
+
+    public static Connection getConnection() {
+        try {
+            if (conn == null || conn.isClosed()) {
+                Class.forName("com.mysql.cj.jdbc.Driver");
+                conn = DriverManager.getConnection(
+                        "jdbc:mysql://localhost:3306/gradingdb", "root", "yourpassword");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return conn;
+    }
+}
+
+💻 2. Student.java
+public class Student {
+    private int id;
+    private String name;
+    private int math, science, english;
+    private double average;
+    private String grade;
+
+    public Student(String name, int math, int science, int english) {
+        this.name = name;
+        this.math = math;
+        this.science = science;
+        this.english = english;
+        calculateAverageAndGrade();
+    }
+
+    private void calculateAverageAndGrade() {
+        average = (math + science + english) / 3.0;
+        if (average >= 90) grade = "A";
+        else if (average >= 80) grade = "B";
+        else if (average >= 70) grade = "C";
+        else if (average >= 50) grade = "D";
+        else grade = "F";
+    }
+
+    public String getName() { return name; }
+    public int getMath() { return math; }
+    public int getScience() { return science; }
+    public int getEnglish() { return english; }
+    public double getAverage() { return average; }
+    public String getGrade() { return grade; }
+}
+
+💻 3. GradingSystemMain.java
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.sql.*;
+
+public class GradingSystemMain extends JFrame implements ActionListener {
+    private JTextField nameField, mathField, scienceField, englishField;
+    private JButton addButton, viewButton;
+
+    public GradingSystemMain() {
+        setTitle("Student Grading System");
+        setSize(400, 400);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLayout(new GridLayout(6, 2, 10, 10));
+        setLocationRelativeTo(null);
+
+        add(new JLabel("Student Name:"));
+        nameField = new JTextField();
+        add(nameField);
+
+        add(new JLabel("Math Marks:"));
+        mathField = new JTextField();
+        add(mathField);
+
+        add(new JLabel("Science Marks:"));
+        scienceField = new JTextField();
+        add(scienceField);
+
+        add(new JLabel("English Marks:"));
+        englishField = new JTextField();
+        add(englishField);
+
+        addButton = new JButton("Add Student");
+        viewButton = new JButton("View Students");
+        addButton.addActionListener(this);
+        viewButton.addActionListener(this);
+
+        add(addButton);
+        add(viewButton);
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == addButton) {
+            String name = nameField.getText();
+            int math = Integer.parseInt(mathField.getText());
+            int science = Integer.parseInt(scienceField.getText());
+            int english = Integer.parseInt(englishField.getText());
+
+            Student student = new Student(name, math, science, english);
+
+            try {
+                Connection con = DBConnection.getConnection();
+                PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO students(name, math, science, english, average, grade) VALUES(?,?,?,?,?,?)");
+                ps.setString(1, student.getName());
+                ps.setInt(2, student.getMath());
+                ps.setInt(3, student.getScience());
+                ps.setInt(4, student.getEnglish());
+                ps.setDouble(5, student.getAverage());
+                ps.setString(6, student.getGrade());
+                ps.executeUpdate();
+
+                JOptionPane.showMessageDialog(this, "Student added successfully!");
+                nameField.setText(""); mathField.setText(""); scienceField.setText(""); englishField.setText("");
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+
+        } else if (e.getSource() == viewButton) {
+            try {
+                Connection con = DBConnection.getConnection();
+                Statement stmt = con.createStatement();
+                ResultSet rs = stmt.executeQuery("SELECT * FROM students ORDER BY average DESC");
+
+                StringBuilder sb = new StringBuilder();
+                while (rs.next()) {
+                    sb.append("Name: ").append(rs.getString("name"))
+                      .append(", Math: ").append(rs.getInt("math"))
+                      .append(", Science: ").append(rs.getInt("science"))
+                      .append(", English: ").append(rs.getInt("english"))
+                      .append(", Avg: ").append(rs.getDouble("average"))
+                      .append(", Grade: ").append(rs.getString("grade"))
+                      .append("\n");
+                }
+
+                JTextArea textArea = new JTextArea(sb.toString());
+                textArea.setEditable(false);
+                JOptionPane.showMessageDialog(this, new JScrollPane(textArea), "Student Records", JOptionPane.INFORMATION_MESSAGE);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            new GradingSystemMain().setVisible(true);
+        });
+    }
+}
+
+🗄️ MySQL Database Setup
+CREATE DATABASE gradingdb;
+USE gradingdb;
+
+CREATE TABLE students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100),
+    math INT,
+    science INT,
+    english INT,
+    average DOUBLE,
+    grade VARCHAR(2)
+);
+
+🧩 Features
+
+✅ Add students with marks
+✅ Calculate average and grade automatically
+✅ View students sorted by average (ranking)
+✅ GUI with Java Swing
+✅ Persistent storage in MySQL
+
+⚙️ How to Run in VS Code
+
+Install MySQL and create the database gradingdb.
+
+Add MySQL Connector JAR to project libraries.
+
+Update DBConnection.java with your MySQL credentials.
+
+Create src folder → add all .java files.
+
+Run GradingSystemMain.java → GUI will open.

@@ -1,0 +1,290 @@
+🏰 Project Title: Text-Based Adventure Game
+🧠 Abstract
+
+The player (Adventurer) navigates through rooms, collects items, and interacts with the environment using simple text commands:
+GO, LOOK, TAKE, DROP, USE, EXIT.
+
+The game uses:
+
+OOP — classes for Adventurer, Room, Item, and Game logic
+
+Collections — HashMap for rooms and ArrayList for inventory
+
+🧰 Technologies Used
+Component	Technology
+Programming Language	Java
+Concepts	OOP, Arrays, HashMap
+IDE	VS Code / IntelliJ / Eclipse
+📂 Project Structure
+TextAdventureGame/
+├── TextAdventure.java      // Main game class
+├── AdventureModel.java     // Contains rooms and items
+├── Adventurer.java         // Player class
+├── Room.java               // Room class
+├── Item.java               // Item class
+
+💻 1. Item.java
+public class Item {
+    private String name;
+    private String description;
+
+    public Item(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
+    public String getName() { return name; }
+    public String getDescription() { return description; }
+}
+
+💻 2. Room.java
+import java.util.*;
+
+public class Room {
+    private String name;
+    private String description;
+    private HashMap<String, Room> exits;
+    private ArrayList<Item> items;
+
+    public Room(String name, String description) {
+        this.name = name;
+        this.description = description;
+        this.exits = new HashMap<>();
+        this.items = new ArrayList<>();
+    }
+
+    public void setExit(String direction, Room room) {
+        exits.put(direction.toUpperCase(), room);
+    }
+
+    public Room getExit(String direction) {
+        return exits.get(direction.toUpperCase());
+    }
+
+    public String getDescription() { return description; }
+    public String getName() { return name; }
+
+    public void addItem(Item item) { items.add(item); }
+    public void removeItem(Item item) { items.remove(item); }
+    public ArrayList<Item> getItems() { return items; }
+
+    public String getExitsString() {
+        return String.join(", ", exits.keySet());
+    }
+}
+
+💻 3. Adventurer.java
+import java.util.ArrayList;
+
+public class Adventurer {
+    private String name;
+    private Room currentRoom;
+    private ArrayList<Item> inventory;
+
+    public Adventurer(String name, Room startingRoom) {
+        this.name = name;
+        this.currentRoom = startingRoom;
+        this.inventory = new ArrayList<>();
+    }
+
+    public String getName() { return name; }
+    public Room getCurrentRoom() { return currentRoom; }
+    public void setCurrentRoom(Room room) { currentRoom = room; }
+
+    public void addItem(Item item) { inventory.add(item); }
+    public void removeItem(Item item) { inventory.remove(item); }
+    public ArrayList<Item> getInventory() { return inventory; }
+
+    public void showInventory() {
+        if (inventory.isEmpty()) {
+            System.out.println("Inventory is empty.");
+        } else {
+            System.out.println("You have:");
+            for (Item item : inventory) {
+                System.out.println("- " + item.getName());
+            }
+        }
+    }
+}
+
+💻 4. AdventureModel.java
+public class AdventureModel {
+    public Room startRoom;
+
+    public AdventureModel() {
+        createRooms();
+    }
+
+    private void createRooms() {
+        Room hall = new Room("Hall", "A grand hall with shiny floors.");
+        Room kitchen = new Room("Kitchen", "Smells like fresh bread.");
+        Room garden = new Room("Garden", "Beautiful flowers bloom here.");
+
+        // Set exits
+        hall.setExit("NORTH", kitchen);
+        hall.setExit("EAST", garden);
+        kitchen.setExit("SOUTH", hall);
+        garden.setExit("WEST", hall);
+
+        // Add items
+        kitchen.addItem(new Item("Key", "A small rusty key."));
+        garden.addItem(new Item("Flower", "A red rose."));
+
+        startRoom = hall;
+    }
+}
+
+💻 5. TextAdventure.java (Main Game Class)
+import java.util.Scanner;
+
+public class TextAdventure {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        AdventureModel model = new AdventureModel();
+
+        System.out.print("Enter your adventurer's name: ");
+        String name = scanner.nextLine();
+        Adventurer player = new Adventurer(name, model.startRoom);
+
+        System.out.println("\nWelcome, " + name + "! Type 'HELP' to see commands.\n");
+
+        boolean playing = true;
+
+        while (playing) {
+            Room current = player.getCurrentRoom();
+            System.out.println("\nYou are in the " + current.getName());
+            System.out.println(current.getDescription());
+            System.out.println("Exits: " + current.getExitsString());
+
+            if (!current.getItems().isEmpty()) {
+                System.out.println("Items here:");
+                for (Item item : current.getItems()) {
+                    System.out.println("- " + item.getName());
+                }
+            }
+
+            System.out.print("\n> ");
+            String input = scanner.nextLine().trim().toUpperCase();
+            String[] words = input.split(" ");
+
+            switch (words[0]) {
+                case "GO":
+                    if (words.length < 2) {
+                        System.out.println("Go where?");
+                    } else {
+                        Room nextRoom = current.getExit(words[1]);
+                        if (nextRoom != null) {
+                            player.setCurrentRoom(nextRoom);
+                        } else {
+                            System.out.println("You can't go that way.");
+                        }
+                    }
+                    break;
+
+                case "LOOK":
+                    System.out.println(current.getDescription());
+                    break;
+
+                case "TAKE":
+                    if (words.length < 2) {
+                        System.out.println("Take what?");
+                    } else {
+                        Item found = null;
+                        for (Item item : current.getItems()) {
+                            if (item.getName().toUpperCase().equals(words[1])) {
+                                found = item;
+                                break;
+                            }
+                        }
+                        if (found != null) {
+                            player.addItem(found);
+                            current.removeItem(found);
+                            System.out.println("You picked up: " + found.getName());
+                        } else {
+                            System.out.println("No such item here.");
+                        }
+                    }
+                    break;
+
+                case "DROP":
+                    if (words.length < 2) {
+                        System.out.println("Drop what?");
+                    } else {
+                        Item found = null;
+                        for (Item item : player.getInventory()) {
+                            if (item.getName().toUpperCase().equals(words[1])) {
+                                found = item;
+                                break;
+                            }
+                        }
+                        if (found != null) {
+                            player.removeItem(found);
+                            current.addItem(found);
+                            System.out.println("You dropped: " + found.getName());
+                        } else {
+                            System.out.println("You don't have that item.");
+                        }
+                    }
+                    break;
+
+                case "USE":
+                    System.out.println("You try to use something... but nothing happens. (Future feature!)");
+                    break;
+
+                case "INVENTORY":
+                    player.showInventory();
+                    break;
+
+                case "HELP":
+                    System.out.println("Commands: GO [direction], LOOK, TAKE [item], DROP [item], INVENTORY, EXIT");
+                    break;
+
+                case "EXIT":
+                    System.out.println("Thanks for playing!");
+                    playing = false;
+                    break;
+
+                default:
+                    System.out.println("Unknown command. Type HELP for list of commands.");
+            }
+        }
+
+        scanner.close();
+    }
+}
+
+🧩 Features
+
+Navigate rooms (GO NORTH, GO EAST)
+
+Look around (LOOK)
+
+Pick up and drop items (TAKE Key, DROP Flower)
+
+Inventory management (INVENTORY)
+
+Help command (HELP)
+
+Exit game (EXIT)
+
+⚙️ How to Run in VS Code
+
+Create folder TextAdventureGame
+
+Add all .java files inside src folder
+
+Open VS Code → run TextAdventure.java
+
+Play using commands in console
+
+🚀 Enhancements (Future Versions)
+
+Add more rooms dynamically
+
+Add puzzles & locked doors
+
+Multiple players or NPCs
+
+Save/load game state
+
+GUI version with Swing

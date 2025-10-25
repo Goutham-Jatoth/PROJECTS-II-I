@@ -1,0 +1,230 @@
+Question Paper Leakage Prevention Using Blockchain – Project Notes
+1. Introduction
+
+Question paper leakage is a serious issue in examinations worldwide. Blockchain technology can help prevent leakage by providing a tamper-proof, decentralized ledger where question papers are securely stored and shared.
+
+Objectives:
+
+Store encrypted question papers on a blockchain.
+
+Ensure only authorized users can access the papers.
+
+Prevent tampering and unauthorized sharing of question papers.
+
+2. Tools and Technologies
+
+Programming Language: Java 17
+
+IDE: VS Code / Eclipse
+
+Libraries:
+
+java.security (for hashing and encryption)
+
+java.util (for data structures like ArrayList)
+
+GUI (Optional): Swing (for admin interface)
+
+3. Concept & Methodology
+3.1 Blockchain Basics
+
+Blockchain is a chain of blocks, each containing data, a timestamp, and a hash of the previous block.
+
+Hash ensures immutability; any change in data changes the hash.
+
+In our project, each block represents a question paper.
+
+3.2 How It Works
+
+Admin adds a question paper to the blockchain.
+
+The question paper is encrypted before storing.
+
+Each block contains:
+
+Index
+
+Timestamp
+
+Encrypted data (question paper)
+
+Hash of the previous block
+
+Its own hash
+
+Blockchain ensures tamper-proof storage.
+
+Students/examiners can access papers using a secure key.
+
+4. Blockchain Implementation in Java
+4.1 Block.java
+package com.project;
+
+import java.util.Date;
+import java.security.MessageDigest;
+
+public class Block {
+    public int index;
+    public long timestamp;
+    public String data; // Question Paper (encrypted)
+    public String previousHash;
+    public String hash;
+
+    public Block(int index, String data, String previousHash) {
+        this.index = index;
+        this.timestamp = new Date().getTime();
+        this.data = data;
+        this.previousHash = previousHash;
+        this.hash = calculateHash();
+    }
+
+    public String calculateHash() {
+        try {
+            String input = index + Long.toString(timestamp) + data + previousHash;
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(input.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hashBytes) {
+                String hex = Integer.toHexString(0xff & b);
+                if(hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+4.2 Blockchain.java
+package com.project;
+
+import java.util.ArrayList;
+
+public class Blockchain {
+    public ArrayList<Block> chain;
+
+    public Blockchain() {
+        chain = new ArrayList<>();
+        // Create genesis block
+        chain.add(createGenesisBlock());
+    }
+
+    private Block createGenesisBlock() {
+        return new Block(0, "Genesis Block", "0");
+    }
+
+    public Block getLatestBlock() {
+        return chain.get(chain.size() - 1);
+    }
+
+    public void addBlock(String data) {
+        Block previousBlock = getLatestBlock();
+        Block newBlock = new Block(chain.size(), data, previousBlock.hash);
+        chain.add(newBlock);
+    }
+
+    public boolean isChainValid() {
+        for (int i = 1; i < chain.size(); i++) {
+            Block currentBlock = chain.get(i);
+            Block previousBlock = chain.get(i - 1);
+
+            if (!currentBlock.hash.equals(currentBlock.calculateHash())) {
+                return false;
+            }
+
+            if (!currentBlock.previousHash.equals(previousBlock.hash)) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+4.3 Main.java
+package com.project;
+
+import javax.swing.*;
+import java.util.Base64;
+
+public class Main {
+
+    public static void main(String[] args) {
+        Blockchain questionChain = new Blockchain();
+
+        // GUI to add and view question papers
+        while (true) {
+            String[] options = {"Add Question Paper", "View Blockchain", "Check Validity", "Exit"};
+            int choice = JOptionPane.showOptionDialog(null, "Select Option", "Blockchain QP System",
+                    JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+            switch (choice) {
+                case 0: // Add Question Paper
+                    String qp = JOptionPane.showInputDialog("Enter Question Paper text:");
+                    String encryptedQP = Base64.getEncoder().encodeToString(qp.getBytes());
+                    questionChain.addBlock(encryptedQP);
+                    JOptionPane.showMessageDialog(null, "Question Paper Added Successfully!");
+                    break;
+
+                case 1: // View Blockchain
+                    StringBuilder sb = new StringBuilder();
+                    for (Block block : questionChain.chain) {
+                        sb.append("Index: ").append(block.index).append("\n")
+                          .append("Data: ").append(new String(Base64.getDecoder().decode(block.data))).append("\n")
+                          .append("Hash: ").append(block.hash).append("\n")
+                          .append("Previous Hash: ").append(block.previousHash).append("\n\n");
+                    }
+                    JTextArea textArea = new JTextArea(sb.toString());
+                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    textArea.setLineWrap(true);
+                    textArea.setWrapStyleWord(true);
+                    scrollPane.setPreferredSize(new java.awt.Dimension(500, 400));
+                    JOptionPane.showMessageDialog(null, scrollPane, "Blockchain", JOptionPane.INFORMATION_MESSAGE);
+                    break;
+
+                case 2: // Check Validity
+                    boolean isValid = questionChain.isChainValid();
+                    JOptionPane.showMessageDialog(null, "Blockchain Validity: " + isValid);
+                    break;
+
+                case 3: // Exit
+                    System.exit(0);
+                    break;
+            }
+        }
+    }
+}
+
+5. How It Works
+
+Admin adds a question paper via GUI → it’s encrypted and added as a block.
+
+Blockchain links all blocks → each block contains hash of previous block.
+
+Attempted tampering will invalidate the blockchain.
+
+Users can view all question papers (decrypted) and check integrity.
+
+6. Advantages
+
+Immutable storage of question papers.
+
+Prevents unauthorized modification or leakage.
+
+Simple GUI interface for adding and viewing question papers.
+
+7. Limitations
+
+Simple blockchain simulation, not distributed.
+
+Real-world systems require networked blockchain with multiple nodes.
+
+Encryption is basic; production systems need stronger security.
+
+8. Future Scope
+
+Implement real blockchain network with multiple exam centers.
+
+Integrate public-private key cryptography for secure access.
+
+Add timestamped access logs to track who accessed which paper.

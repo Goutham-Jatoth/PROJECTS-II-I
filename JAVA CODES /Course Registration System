@@ -1,0 +1,242 @@
+Mini Project Record – Course Registration System in Java
+
+Title: Course Registration System in Java
+Submitted By: [Your Name], Roll No: [Your Roll No], Branch: [Your Branch]
+Submitted To: [College Name], Department of [Your Department]
+Year & Semester: B.Tech 2nd Year, 4th Semester
+
+1. Introduction
+
+The Course Registration System allows students to register for courses offered in a semester. It helps track registered courses, calculate total credits, and avoid conflicts such as registering for the same course twice. The project uses Java and file handling for persistent storage.
+
+2. Objective
+
+Develop a system to allow students to add, view, and drop courses.
+
+Track total registered credits for each student.
+
+Avoid duplicate registrations.
+
+Provide persistent storage for course registration records.
+
+3. Tools and Technologies
+
+Programming Language: Java
+
+IDE: Eclipse / IntelliJ / NetBeans
+
+Storage: Text file (courses.txt)
+
+Operating System: Windows/Linux/Mac
+
+4. Software Requirement Specification (SRS)
+Functional Requirements
+
+Add a new course for a student.
+
+Drop a registered course.
+
+View all registered courses.
+
+Calculate total credits for a student.
+
+Store registration records in a file (courses.txt).
+
+Non-Functional Requirements
+
+Console-based user-friendly interface.
+
+Persistent storage to prevent data loss.
+
+Efficient data validation to avoid duplicate registration.
+
+5. System Design
+Class Diagram
++---------------------+
+|      Course         |
++---------------------+
+| - code: String      |
+| - name: String      |
+| - credits: int      |
++---------------------+
+
++--------------------------+
+|  CourseRegistrationSystem |
++--------------------------+
+| - courses: List<Course>  |
+| - FILE_NAME: String      |
++--------------------------+
+| + main()                 |
+| + addCourse()            |
+| + dropCourse()           |
+| + viewCourses()          |
+| + calculateTotalCredits()|
+| + saveToFile()           |
+| + loadFromFile()         |
++--------------------------+
+
+Flowchart
+
+Start Application
+
+Load registered courses from file
+
+Show menu: Add / Drop / View / Exit
+
+Perform chosen action
+
+Update file and continue until exit
+
+6. Java Code – Console Version
+import java.io.*;
+import java.util.*;
+
+class Course {
+    String code;
+    String name;
+    int credits;
+
+    Course(String code, String name, int credits) {
+        this.code = code;
+        this.name = name;
+        this.credits = credits;
+    }
+
+    @Override
+    public String toString() {
+        return code + " - " + name + " (" + credits + " credits)";
+    }
+}
+
+public class CourseRegistrationSystem {
+    static List<Course> courses = new ArrayList<>();
+    static final String FILE_NAME = "courses.txt";
+    static Scanner sc = new Scanner(System.in);
+
+    public static void main(String[] args) {
+        loadFromFile();
+        int choice;
+        do {
+            System.out.println("\n--- Course Registration System ---");
+            System.out.println("1. Add Course");
+            System.out.println("2. Drop Course");
+            System.out.println("3. View Registered Courses");
+            System.out.println("4. Total Credits");
+            System.out.println("5. Exit");
+            System.out.print("Enter choice: ");
+            choice = sc.nextInt();
+            sc.nextLine(); // consume newline
+            switch(choice) {
+                case 1: addCourse(); break;
+                case 2: dropCourse(); break;
+                case 3: viewCourses(); break;
+                case 4: totalCredits(); break;
+                case 5: saveToFile(); System.out.println("Exiting..."); break;
+                default: System.out.println("Invalid choice!");
+            }
+        } while(choice != 5);
+    }
+
+    static void addCourse() {
+        System.out.print("Enter course code: ");
+        String code = sc.nextLine();
+        for(Course c : courses) {
+            if(c.code.equalsIgnoreCase(code)) {
+                System.out.println("Course already registered!");
+                return;
+            }
+        }
+        System.out.print("Enter course name: ");
+        String name = sc.nextLine();
+        System.out.print("Enter credits: ");
+        int credits = sc.nextInt();
+        sc.nextLine();
+        courses.add(new Course(code, name, credits));
+        System.out.println("Course added successfully!");
+    }
+
+    static void dropCourse() {
+        System.out.print("Enter course code to drop: ");
+        String code = sc.nextLine();
+        boolean removed = courses.removeIf(c -> c.code.equalsIgnoreCase(code));
+        if(removed) System.out.println("Course dropped successfully!");
+        else System.out.println("Course not found!");
+    }
+
+    static void viewCourses() {
+        System.out.println("\n--- Registered Courses ---");
+        if(courses.isEmpty()) System.out.println("No courses registered.");
+        for(Course c : courses) System.out.println(c);
+    }
+
+    static void totalCredits() {
+        int total = 0;
+        for(Course c : courses) total += c.credits;
+        System.out.println("Total Credits: " + total);
+    }
+
+    static void saveToFile() {
+        try(PrintWriter pw = new PrintWriter(new FileWriter(FILE_NAME))) {
+            for(Course c : courses) pw.println(c.code + "," + c.name + "," + c.credits);
+        } catch(IOException e) {
+            System.out.println("Error saving file!");
+        }
+    }
+
+    static void loadFromFile() {
+        File file = new File(FILE_NAME);
+        if(!file.exists()) return;
+        try(Scanner fileScanner = new Scanner(file)) {
+            while(fileScanner.hasNextLine()) {
+                String[] data = fileScanner.nextLine().split(",");
+                courses.add(new Course(data[0], data[1], Integer.parseInt(data[2])));
+            }
+        } catch(Exception e) {
+            System.out.println("Error loading file!");
+        }
+    }
+}
+
+7. Sample courses.txt File
+CS101,Introduction to Programming,4
+MA102,Calculus II,3
+EE103,Digital Electronics,3
+
+8. Sample Input & Output
+
+Menu Example:
+
+1. Add Course
+2. Drop Course
+3. View Registered Courses
+4. Total Credits
+5. Exit
+
+
+View Courses Output:
+
+CS101 - Introduction to Programming (4 credits)
+MA102 - Calculus II (3 credits)
+Total Credits: 7
+
+9. Conclusion
+
+The Course Registration System allows students to register for courses efficiently, keeps track of total credits, and avoids duplicate registrations. Using Java and file handling, this project demonstrates practical application of programming concepts and data persistence.
+
+10. References
+
+Herbert Schildt, Java: The Complete Reference, 11th Edition
+
+Oracle Java Documentation – https://docs.oracle.com/javase/
+
+File Handling Tutorials – https://www.javatpoint.com/java-file-handling
+
+11. Optional Enhancements
+
+Add GUI using Swing for course registration.
+
+Use SQLite/MySQL database instead of text file.
+
+Add schedule conflict detection for time clashes.
+
+Generate student registration reports automatically.

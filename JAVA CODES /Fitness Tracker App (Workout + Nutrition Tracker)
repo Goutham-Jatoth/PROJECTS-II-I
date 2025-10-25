@@ -1,0 +1,233 @@
+📱 1. Fitness Tracker App (Workout + Nutrition Tracker)
+🔹 Overview
+
+A simple Android app to:
+
+Log workouts (exercise name, duration, calories burned)
+
+Track meals and total calorie intake
+
+Show daily summary
+
+🔹 Main Features
+
+Two activities: WorkoutActivity and MealActivity
+
+SQLite Database for storage
+
+Dashboard for total calories
+
+🧩 Project Structure
+FitnessTracker/
+ ├── MainActivity.java
+ ├── WorkoutActivity.java
+ ├── MealActivity.java
+ ├── DatabaseHelper.java
+ ├── activity_main.xml
+ ├── activity_workout.xml
+ ├── activity_meal.xml
+
+🧠 MainActivity.java
+package com.example.fitnesstracker;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.TextView;
+
+public class MainActivity extends AppCompatActivity {
+    TextView totalCalories;
+    DatabaseHelper db;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        totalCalories = findViewById(R.id.txtTotalCalories);
+        db = new DatabaseHelper(this);
+        updateCalories();
+    }
+
+    public void openWorkout(View v){
+        startActivity(new Intent(this, WorkoutActivity.class));
+    }
+
+    public void openMeal(View v){
+        startActivity(new Intent(this, MealActivity.class));
+    }
+
+    private void updateCalories(){
+        int total = db.getTotalCalories();
+        totalCalories.setText("Today's Calories: " + total);
+    }
+}
+
+⚙️ DatabaseHelper.java
+package com.example.fitnesstracker;
+
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+import android.database.Cursor;
+import android.content.ContentValues;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+    public static final String DB_NAME = "fitness.db";
+    public static final String TABLE_NAME = "calories";
+
+    public DatabaseHelper(Context context) {
+        super(context, DB_NAME, null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE " + TABLE_NAME + "(id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT, calories INTEGER)");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
+        onCreate(db);
+    }
+
+    public void insertData(String type, int calories) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("type", type);
+        cv.put("calories", calories);
+        db.insert(TABLE_NAME, null, cv);
+    }
+
+    public int getTotalCalories() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery("SELECT SUM(calories) FROM " + TABLE_NAME, null);
+        cursor.moveToFirst();
+        return cursor.getInt(0);
+    }
+}
+
+🗣️ 2. Language Learning App (Quiz-Based)
+🔹 Overview
+
+A simple quiz-style app for learning words:
+
+Display a question (word meaning)
+
+User chooses the correct answer
+
+Score is updated
+
+🧠 MainActivity.java
+package com.example.languageapp;
+
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.*;
+
+public class MainActivity extends AppCompatActivity {
+    TextView question, score;
+    Button opt1, opt2, opt3;
+    int current = 0, points = 0;
+
+    String[] words = {"Bonjour", "Gracias", "Hallo"};
+    String[][] options = {{"Hello", "Goodbye", "Thank you"},
+                          {"Please", "Thank you", "Sorry"},
+                          {"Bye", "Hello", "Good night"}};
+    int[] answers = {0, 1, 1}; // correct option index
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        question = findViewById(R.id.question);
+        score = findViewById(R.id.score);
+        opt1 = findViewById(R.id.opt1);
+        opt2 = findViewById(R.id.opt2);
+        opt3 = findViewById(R.id.opt3);
+        loadQuestion();
+    }
+
+    private void loadQuestion() {
+        if(current < words.length) {
+            question.setText("Meaning of " + words[current]);
+            opt1.setText(options[current][0]);
+            opt2.setText(options[current][1]);
+            opt3.setText(options[current][2]);
+        } else {
+            question.setText("Quiz Over! Final Score: " + points);
+            opt1.setVisibility(View.GONE);
+            opt2.setVisibility(View.GONE);
+            opt3.setVisibility(View.GONE);
+        }
+    }
+
+    public void checkAnswer(View v){
+        Button b = (Button)v;
+        int index = Integer.parseInt(b.getTag().toString());
+        if(index == answers[current]){
+            points++;
+            score.setText("Score: " + points);
+        }
+        current++;
+        loadQuestion();
+    }
+}
+
+💰 3. Personal Finance Tracker App
+🔹 Overview
+
+Track your expenses and budget using SQLite.
+
+⚙️ DatabaseHelper.java
+package com.example.financeapp;
+
+import android.content.Context;
+import android.database.sqlite.*;
+import android.content.ContentValues;
+import android.database.Cursor;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+    public DatabaseHelper(Context context) {
+        super(context, "finance.db", null, 1);
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE expenses(id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT, amount REAL)");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS expenses");
+        onCreate(db);
+    }
+
+    public void addExpense(String category, double amount) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("category", category);
+        cv.put("amount", amount);
+        db.insert("expenses", null, cv);
+    }
+
+    public double getTotal() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor c = db.rawQuery("SELECT SUM(amount) FROM expenses", null);
+        c.moveToFirst();
+        return c.getDouble(0);
+    }
+}
+
+🧭 How to Run These Projects
+
+Open Android Studio → New Project → Empty Activity.
+
+Replace the MainActivity.java and layout files (activity_main.xml) with the provided code.
+
+Create new Java classes (e.g., DatabaseHelper.java).
+
+Add necessary permissions in AndroidManifest.xml (if using storage or internet).
+
+Run on emulator or real Android device.

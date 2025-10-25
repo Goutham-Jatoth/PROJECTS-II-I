@@ -1,0 +1,323 @@
+Expense Tracker – Java Code (Swing + File Handling)
+import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.*;
+import java.util.*;
+
+public class ExpenseTracker extends JFrame {
+    private JTable table;
+    private DefaultTableModel model;
+    private JTextField txtDesc, txtAmount;
+    private JButton btnAdd, btnDelete;
+    private JLabel lblTotal;
+    private final String FILE_NAME = "expenses.txt";
+
+    public ExpenseTracker() {
+        setTitle("Expense Tracker");
+        setSize(600, 400);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(new BorderLayout());
+
+        // Top panel for input
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new FlowLayout());
+
+        topPanel.add(new JLabel("Description:"));
+        txtDesc = new JTextField(10);
+        topPanel.add(txtDesc);
+
+        topPanel.add(new JLabel("Amount:"));
+        txtAmount = new JTextField(5);
+        topPanel.add(txtAmount);
+
+        btnAdd = new JButton("Add Expense");
+        topPanel.add(btnAdd);
+
+        btnDelete = new JButton("Delete Selected");
+        topPanel.add(btnDelete);
+
+        add(topPanel, BorderLayout.NORTH);
+
+        // Table for expenses
+        model = new DefaultTableModel(new String[]{"Description", "Amount"}, 0);
+        table = new JTable(model);
+        add(new JScrollPane(table), BorderLayout.CENTER);
+
+        // Total label
+        lblTotal = new JLabel("Total: 0.0");
+        lblTotal.setFont(new Font("Arial", Font.BOLD, 16));
+        add(lblTotal, BorderLayout.SOUTH);
+
+        loadExpenses();
+
+        btnAdd.addActionListener(e -> addExpense());
+        btnDelete.addActionListener(e -> deleteExpense());
+
+        setVisible(true);
+    }
+
+    private void addExpense() {
+        String desc = txtDesc.getText().trim();
+        String amtText = txtAmount.getText().trim();
+        if(desc.isEmpty() || amtText.isEmpty()) {
+            JOptionPane.showMessageDialog(this, "Please fill all fields");
+            return;
+        }
+        try {
+            double amount = Double.parseDouble(amtText);
+            model.addRow(new Object[]{desc, amount});
+            updateTotal();
+            saveExpenses();
+            txtDesc.setText("");
+            txtAmount.setText("");
+        } catch(NumberFormatException ex) {
+            JOptionPane.showMessageDialog(this, "Invalid amount");
+        }
+    }
+
+    private void deleteExpense() {
+        int selectedRow = table.getSelectedRow();
+        if(selectedRow != -1) {
+            model.removeRow(selectedRow);
+            updateTotal();
+            saveExpenses();
+        } else {
+            JOptionPane.showMessageDialog(this, "Select a row to delete");
+        }
+    }
+
+    private void updateTotal() {
+        double total = 0;
+        for(int i=0; i<model.getRowCount(); i++) {
+            total += (double) model.getValueAt(i, 1);
+        }
+        lblTotal.setText("Total: " + total);
+    }
+
+    private void saveExpenses() {
+        try(PrintWriter pw = new PrintWriter(new FileWriter(FILE_NAME))) {
+            for(int i=0; i<model.getRowCount(); i++) {
+                String desc = (String) model.getValueAt(i, 0);
+                double amt = (double) model.getValueAt(i, 1);
+                pw.println(desc + "," + amt);
+            }
+        } catch(IOException e) {
+            JOptionPane.showMessageDialog(this, "Error saving file");
+        }
+    }
+
+    private void loadExpenses() {
+        File file = new File(FILE_NAME);
+        if(!file.exists()) return;
+        try(Scanner sc = new Scanner(file)) {
+            while(sc.hasNextLine()) {
+                String[] data = sc.nextLine().split(",");
+                model.addRow(new Object[]{data[0], Double.parseDouble(data[1])});
+            }
+            updateTotal();
+        } catch(Exception e) {
+            JOptionPane.showMessageDialog(this, "Error loading file");
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(ExpenseTracker::new);
+    }
+}
+
+How It Works
+
+Enter Description and Amount, click Add Expense.
+
+Expenses appear in the table.
+
+Select a row and click Delete Selected to remove.
+
+Total expense updates automatically.
+
+Expenses are saved to expenses.txt and loaded on startup.
+
+Sample expenses.txt Content
+Food,200.0
+Transport,50.0
+Books,300.0
+
+Extra Ideas to Make It Stand Out
+
+Add categories (Food, Travel, Bills) with a combo box.
+
+Add monthly/yearly summary charts using JFreeChart.
+
+Add export to CSV button.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mini Project Record – Expense Tracker in Java
+
+Title: Expense Tracker Application in Java
+Submitted By: [Your Name], Roll No: [Your Roll No], Branch: [Your Branch]
+Submitted To: [College Name], Department of [Your Department]
+Year & Semester: B.Tech 2nd Year, 4th Semester
+
+1. Introduction
+
+Managing personal expenses is crucial for financial planning. This project helps users track daily expenses efficiently using a Java GUI application. The program allows users to add, delete, and view expenses, calculates total expenses, and stores all data persistently in a text file for future reference.
+
+2. Objective
+
+Develop a user-friendly Java application for tracking expenses.
+
+Provide persistent storage for expense records.
+
+Offer easy addition, deletion, and summary of expenses.
+
+Practice Java Swing GUI and file handling concepts.
+
+3. Tools and Technologies
+
+Programming Language: Java
+
+IDE: Eclipse / IntelliJ IDEA / NetBeans
+
+GUI Library: Swing
+
+File Handling: Text files (expenses.txt)
+
+Operating System: Windows / Linux / Mac
+
+4. Software Requirement Specification (SRS)
+Functional Requirements
+
+Add a new expense with description and amount.
+
+Delete selected expense.
+
+View all expenses in a table.
+
+Display total expenses dynamically.
+
+Save expenses to a file (expenses.txt).
+
+Load expenses from the file at startup.
+
+Non-Functional Requirements
+
+Simple, intuitive, and user-friendly GUI.
+
+Fast and responsive application.
+
+Persistent storage to prevent data loss.
+
+Lightweight; can run on any system with Java installed.
+
+5. System Design
+Class Diagram
++---------------------+
+|   ExpenseTracker    |
++---------------------+
+| - table: JTable     |
+| - model: DefaultTableModel |
+| - txtDesc: JTextField |
+| - txtAmount: JTextField |
+| - btnAdd: JButton   |
+| - btnDelete: JButton|
+| - lblTotal: JLabel  |
+| - FILE_NAME: String |
++---------------------+
+| + main()            |
+| + addExpense()      |
+| + deleteExpense()   |
+| + updateTotal()     |
+| + saveExpenses()    |
+| + loadExpenses()    |
++---------------------+
+
+Flowchart
+
+Start Application
+
+Load expenses from file
+
+User enters description & amount → Click Add
+
+Update table and total → Save to file
+
+User selects row → Click Delete
+
+Update table and total → Save to file
+
+Repeat until Exit
+
+6. Code Listing
+// Full code provided above (ExpenseTracker.java)
+
+
+(Include the full code as shown in the previous message)
+
+7. Sample Input & Output
+
+Adding Expenses:
+
+Description	Amount
+Food	200.0
+Transport	50.0
+Books	300.0
+
+Total Displayed: 550.0
+
+Deleting an Expense:
+
+Select “Transport” → Click Delete → Total updates to 500.0
+
+File Storage (expenses.txt):
+
+Food,200.0
+Books,300.0
+
+
+Screenshot Example:
+(Include a screenshot of the running GUI with some sample data.)
+
+8. Conclusion
+
+The Expense Tracker Application demonstrates the use of Java Swing GUI and file handling to create a practical, real-world application. Users can easily track expenses, manage data persistently, and view total expenditures. This project enhances programming skills and understanding of GUI-based applications in Java.
+
+9. References
+
+Herbert Schildt, Java: The Complete Reference, 11th Edition
+
+Oracle Java Documentation – https://docs.oracle.com/javase/
+
+Swing Tutorials – https://www.javatpoint.com/java-swing

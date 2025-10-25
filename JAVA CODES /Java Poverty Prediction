@@ -1,0 +1,341 @@
+Step 1: Project Structure
+PovertyPredictionVS
+│
+├─ pom.xml
+└─ src/main/java/com/project/
+    ├─ PovertyPredictionGUI.java
+    └─ Utils.java
+└─ src/main/resources/images/
+    ├─ poor/
+    └─ not_poor/
+
+
+Keep your training images in poor and not_poor.
+
+Any new image for prediction can be loaded via GUI.
+
+Step 2: Update Utils.java (same as before)
+package com.project;
+
+import org.datavec.api.io.labels.ParentPathLabelGenerator;
+import org.datavec.api.split.FileSplit;
+import org.datavec.image.loader.NativeImageLoader;
+import org.datavec.image.recordreader.ImageRecordReader;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.dataset.api.preprocessor.ImagePreProcessingScaler;
+import org.deeplearning4j.datasets.datavec.RecordReaderDataSetIterator;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.Random;
+
+public class Utils {
+
+    public static DataSetIterator getDataIterator(String dataPath, int height, int width, int channels, int batchSize) throws IOException {
+        File parentDir = new File(dataPath);
+        FileSplit fileSplit = new FileSplit(parentDir, NativeImageLoader.ALLOWED_FORMATS, new Random(123));
+        ParentPathLabelGenerator labelMaker = new ParentPathLabelGenerator();
+        ImageRecordReader recordReader = new ImageRecordReader(height, width, channels, labelMaker);
+        recordReader.initialize(fileSplit);
+        DataSetIterator dataIter = new RecordReaderDataSetIterator(recordReader, batchSize, 1, 2);
+        dataIter.setPreProcessor(new ImagePreProcessingScaler(0, 1));
+        return dataIter;
+    }
+}
+
+Step 3: PovertyPredictionGUI.java
+package com.project;
+
+import org.deeplearning4j.nn.conf.MultiLayerConfiguration;
+import org.deeplearning4j.nn.conf.NeuralNetConfiguration;
+import org.deeplearning4j.nn.conf.layers.*;
+import org.deeplearning4j.nn.multilayer.MultiLayerNetwork;
+import org.deeplearning4j.optimize.listeners.ScoreIterationListener;
+import org.nd4j.linalg.activations.Activation;
+import org.nd4j.linalg.dataset.api.iterator.DataSetIterator;
+import org.nd4j.linalg.learning.config.Adam;
+import org.nd4j.linalg.lossfunctions.LossFunctions;
+import org.datavec.image.loader.NativeImageLoader;
+import org.nd4j.linalg.api.ndarray.INDArray;
+
+import javax.swing.*;
+import java.awt.event.*;
+import java.io.File;
+
+public class PovertyPredictionGUI extends JFrame {
+
+    private JButton loadButton;
+    private JLabel resultLabel;
+    private MultiLayerNetwork model;
+    private int height = 64;
+    private int width = 64;
+    private int channels = 3;
+
+    public PovertyPredictionGUI() {
+        setTitle("Poverty Prediction using Satellite Images");
+        setSize(500, 200);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(null);
+
+        loadButton = new JButton("Load Image for Prediction");
+        loadButton.setBounds(100, 30, 300, 40);
+        add(loadButton);
+
+        resultLabel = new JLabel("Prediction Result: ");
+        resultLabel.setBounds(100, 100, 300, 30);
+        add(resultLabel);
+
+        loadButton.addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                loadImageAndPredict();
+            }
+        });
+
+        // Train model at startup
+        trainModel();
+    }
+
+    private void trainModel() {
+        try {
+            String dataPath = "src/main/resources/images";
+            int outputNum = 2;
+            int batchSize = 16;
+            int epochs = 5;
+
+            DataSetIterator trainIter = Utils.getDataIterator(dataPath, height, width, channels, batchSize);
+
+            MultiLayerConfiguration conf = new NeuralNetConfiguration.Builder()
+                    .updater(new Adam(0.001))
+                    .list()
+                    .layer(new ConvolutionLayer.Builder(5,5)
+                            .nIn(channels)
+                            .stride(1,1)
+                            .nOut(20)
+                            .activation(Activation.RELU)
+                            .build())
+                    .layer(new SubsamplingLayer.Builder(SubsamplingLayer.PoolingType.MAX)
+                            .kernelSize(2,2)
+                            .stride(2,2)
+                            .build())
+                    .layer(new DenseLayer.Builder().activation(Activation.RELU).nOut(50).build())
+                    .layer(new OutputLayer.Builder(LossFunctions.LossFunction.NEGATIVELOGLIKELIHOOD)
+                            .activation(Activation.SOFTMAX)
+                            .nOut(outputNum)
+                            .build())
+                    .build();
+
+            model = new MultiLayerNetwork(conf);
+            model.init();
+            model.setListeners(new ScoreIterationListener(10));
+
+            System.out.println("Training model...");
+            for (int i = 0; i < epochs; i++) {
+                model.fit(trainIter);
+            }
+            System.out.println("Training complete!");
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+    }
+
+    private void loadImageAndPredict() {
+        JFileChooser fileChooser = new JFileChooser();
+        int result = fileChooser.showOpenDialog(this);
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File imageFile = fileChooser.getSelectedFile();
+            try {
+                NativeImageLoader loader = new NativeImageLoader(height, width, channels);
+                INDArray image = loader.asMatrix(imageFile);
+                INDArray output = model.output(image);
+                int predictedClass = output.argMax(1).getInt(0);
+                String label = (predictedClass == 0) ? "Poor" : "Not Poor";
+                resultLabel.setText("Prediction Result: " + label);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> {
+            PovertyPredictionGUI gui = new PovertyPredictionGUI();
+            gui.setVisible(true);
+        });
+    }
+}
+
+Step 4: Run Instructions in VS Code
+
+Open terminal → mvn compile
+
+Run → mvn exec:java -Dexec.mainClass="com.project.PovertyPredictionGUI"
+
+A window will pop up.
+
+Click “Load Image for Prediction” and select any satellite image.
+
+The label “Poor” or “Not Poor” will appear.
+
+✅ This gives you:
+
+Training on labeled satellite images.
+
+GUI for predicting new images.
+
+Fully runnable Java project in VS Code.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Absolutely! Here’s a complete set of notes for your Poverty Prediction using Satellite Images project in Java, covering introduction, methodology, implementation, and results. You can submit these along with your code.
+
+Poverty Prediction Using Satellite Images – Project Notes
+1. Introduction
+
+Poverty prediction using satellite images is an emerging method to assess socio-economic conditions in regions where ground-level data is scarce. By analyzing visual patterns in satellite images, we can estimate poverty levels in different areas.
+
+Key Objectives of the Project:
+
+Train a Convolutional Neural Network (CNN) to classify satellite images as “Poor” or “Not Poor.”
+
+Provide a GUI to allow users to predict poverty levels on new images.
+
+Implement the project entirely in Java using DeepLearning4J (DL4J).
+
+2. Tools and Technologies
+
+Programming Language: Java 17
+
+IDE: VS Code
+
+Libraries/Frameworks:
+
+DeepLearning4J (DL4J): For deep learning and CNN implementation.
+
+ND4J: For numerical computations.
+
+DataVec: For image loading and preprocessing.
+
+Swing: For GUI interface.
+
+Build Tool: Maven
+
+3. Project Structure
+PovertyPredictionVS
+│
+├─ pom.xml                → Maven dependencies
+├─ src/main/java/com/project/
+│   ├─ Utils.java         → Image loading & preprocessing
+│   └─ PovertyPredictionGUI.java → Main GUI with model training and prediction
+└─ src/main/resources/images/
+    ├─ poor/              → Images of poor areas
+    └─ not_poor/          → Images of not poor areas
+
+4. Methodology
+4.1 Data Preparation
+
+Images of areas labeled as “poor” and “not poor” are collected.
+
+Images are resized to 64x64 pixels for faster training.
+
+Image normalization is applied to scale pixel values between 0 and 1.
+
+4.2 Model Architecture
+
+Convolutional Layer: Detects features like roads, vegetation, building density.
+
+Pooling Layer: Reduces dimensionality and retains important features.
+
+Dense Layer: Fully connected layer to process features.
+
+Output Layer: Softmax layer classifying images into two classes (Poor / Not Poor).
+
+Model Hyperparameters:
+
+Optimizer: Adam
+
+Loss Function: Negative Log Likelihood
+
+Epochs: 5 (can be increased for better accuracy)
+
+Batch Size: 16
+
+4.3 Training
+
+Model is trained using labeled images from poor and not_poor folders.
+
+DL4J’s RecordReaderDataSetIterator is used to feed images into the CNN.
+
+ImagePreProcessingScaler normalizes pixel values.
+
+4.4 Prediction
+
+Users can select any new satellite image via the GUI.
+
+Image is loaded and processed to match training input size.
+
+Model outputs the class label as “Poor” or “Not Poor”.
+
+5. GUI Implementation
+
+Built using Java Swing.
+
+Features:
+
+Button to load an image for prediction.
+
+Label to display the predicted result.
+
+Provides a user-friendly interface for interacting with the model without running code manually.
+
+6. Advantages
+
+Fully implemented in Java, no need for Python.
+
+Easy to use via GUI.
+
+Can be extended to more classes or combined with larger datasets.
+
+7. Limitations
+
+Accuracy depends on the size and quality of satellite images.
+
+Small dataset may lead to overfitting.
+
+Image resolution is low (64x64) for fast training; higher resolution may improve accuracy.
+
+8. Sample Output
+
+Training: Model prints training loss every 10 iterations.
+
+GUI Prediction:
+
+Prediction Result: Poor
+
+
+or
+
+Prediction Result: Not Poor
+
+9. Future Scope
+
+Use higher resolution satellite images for better accuracy.
+
+Integrate with real-time satellite feeds for dynamic poverty estimation.
+
+Extend to multi-class classification (low, medium, high poverty).
+
+Deploy as a web application for policymakers.
+
+These notes cover everything: introduction, tools, implementation, methodology, GUI, output, limitations, and future scope.
